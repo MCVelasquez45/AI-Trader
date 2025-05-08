@@ -1,0 +1,17 @@
+/* Reset default spacing and ensure consistent box-sizing across elements */
+* {
+  padding: 0;                 /* Remove default padding */
+  margin: 0;                  /* Remove default margin */
+  box-sizing: border-box;     /* Include padding and border in total width/height */
+}
+
+/* Set global body background and bottom spacing */
+body {
+  background-color: rgb(0, 0, 0); /* Pure black background */
+  margin-bottom: 26px;           /* Space below content (useful for fixed elements like footers) */
+}
+
+/* Make buttons show a pointer cursor on hover */
+button:hover {
+  cursor: pointer;               /* Changes mouse to pointer on hover */
+}

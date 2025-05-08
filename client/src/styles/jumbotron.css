@@ -1,0 +1,23 @@
+/* Jumbotron section: large full-height hero banner */
+.jumbotron {
+  height: 80vh;                       /* Takes up 80% of the viewport height */
+  background-position: center;       /* Center the background image */
+  background-size: cover;            /* Scale background to fill area without distortion */
+  background-repeat: no-repeat;      /* Prevent background from repeating */
+  display: flex;                     /* Enable flex layout */
+  align-items: center;               /* Vertically center content */
+  justify-content: center;          /* Horizontally center content */
+  position: relative;                /* Allows for layered positioning inside (e.g. overlays) */
+  color: white;                      /* Default text color for content inside the jumbotron */
+}
+
+/* Overlay container inside the jumbotron */
+.jumbotron-overlay {
+  background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent black overlay for readability */
+  padding: 2rem;                        /* Internal spacing */
+  border-radius: 1rem;                  /* Rounded corners for modern UI */
+  max-width: 700px;                     /* Limit content width for better readability */
+  text-align: center;                   /* Center all text inside the overlay */
+}
+
+  

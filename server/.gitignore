@@ -1,0 +1,19 @@
+# Node modules (huge folder, don't commit this)
+node_modules/
+
+# Environment variables (sensitive info)
+.env
+
+# Package lock file (optional – read note below)
+package-lock.json
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS-specific junk
+.DS_Store
+Thumbs.db
