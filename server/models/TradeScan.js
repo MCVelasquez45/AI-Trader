@@ -1,20 +1,24 @@
-// Import mongoose to define and interact with MongoDB schemas
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';  // Correct import syntax
 
-// Define the schema for storing scanned ticker data
 const tradeScanSchema = new mongoose.Schema({
-  // The stock symbol being scanned (e.g., "SOFI", "AAPL")
-  ticker: String,
-
-  // An array of candlestick objects returned by Polygon (each includes open, high, low, close, volume)
-  candles: [Object],
-
-  // The timestamp when this scan was performed
+  ticker: {
+    type: String,
+    required: true,
+    index: true
+  },
+  candles: [{
+    o: Number,  // open
+    h: Number,  // high
+    l: Number,  // low
+    c: Number,  // close
+    v: Number,  // volume
+    t: Number   // timestamp
+  }],
   scannedAt: {
     type: Date,
-    default: Date.now // Automatically set to the current date/time when the document is created
+    default: Date.now
   }
 });
 
-// Export the Mongoose model, making it available for querying and saving scans
-module.exports = mongoose.model('TradeScan', tradeScanSchema);
+// Create and export model
+export const TradeScan = mongoose.model('TradeScan', tradeScanSchema);

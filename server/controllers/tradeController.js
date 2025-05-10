@@ -1,24 +1,33 @@
-// Import required modules
-const axios = require('axios');
-const Trade = require('../models/Trade'); // Legacy model (optional)
-const TradeRecommendation = require('../models/TradeRecommendation'); // Main model
-const calculateIndicators = require('../utils/calculateIndicators'); // Utility for RSI/MACD/VWAP
+import axios from 'axios';
+import { TradeRecommendation } from '../models/TradeRecommendation.js';
+import  calculateIndicators  from '../utils/calculateIndicators.js';
+import getStockPrice from '../utils/getStockPrice.js'; // top of file
 
 // 📈 Get aggregate data for a single ticker (daily candles)
-exports.getAggregate = async (req, res) => {
+export const getAggregate = async (req, res) => {
   const { ticker } = req.params;
   const polygon = req.app.get('polygon');
 
   try {
-    const data = await polygon.stocks.aggregates(ticker, 1, "day", "2024-05-01", "2024-05-07");
+    const endDate = new Date();
+    const startDate = new Date(endDate);
+    startDate.setDate(endDate.getDate() - 30);
+
+    const data = await polygon.stocks.aggregates(
+      ticker,
+      1,
+      "day",
+      startDate.toISOString().split('T')[0],
+      endDate.toISOString().split('T')[0]
+    );
     res.json(data);
   } catch (error) {
-    res.status(500).json({ error: `Failed to fetch aggregate for ${ticker}` });
+    res.status(500).json({ error: `Failed to fetch data for ${ticker}` });
   }
 };
 
 // 📊 Get aggregate data for multiple tickers at once
-exports.getMultiAggregates = async (req, res) => {
+export const getMultiAggregates = async (req, res) => {
   const { tickers } = req.body;
   const polygon = req.app.get('polygon');
 
@@ -41,7 +50,7 @@ exports.getMultiAggregates = async (req, res) => {
 };
 
 // 📍 Get latest trade and quote info for a ticker
-exports.getSummary = async (req, res) => {
+export const getSummary = async (req, res) => {
   const { ticker } = req.params;
   const polygon = req.app.get('polygon');
 
@@ -55,49 +64,99 @@ exports.getSummary = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch summary' });
   }
 };
+// Validation Middleware
+export const validateTradeRequest = (req, res, next) => {
+  const { tickers, capital, riskTolerance } = req.body;
+  
+  if (!Array.isArray(tickers)) {
+    return res.status(400).json({ error: 'Tickers must be an array' });
+  }
 
-// 🤖 Analyze trade using GPT + technical indicators
-exports.analyzeTrade = async (req, res) => {
+  if (typeof capital !== 'number' || capital <= 0) {
+    return res.status(400).json({ error: 'Invalid capital amount' });
+  }
+
+  if (!['low', 'medium', 'high'].includes(riskTolerance)) {
+    return res.status(400).json({ error: 'Invalid risk tolerance value' });
+  }
+
+  next();
+};
+
+// 🤖 Analyze trade (updated core logic)
+export const analyzeTrade = async (req, res) => {
   const { tickers, capital, riskTolerance } = req.body;
   const polygon = req.app.get('polygon');
 
   try {
-    // Fetch price history + calculate indicators for each ticker
+    const endDate = new Date();
+    const startDate = new Date(endDate);
+    startDate.setDate(endDate.getDate() - 30);
+
     const results = await Promise.all(
       tickers.map(async (ticker) => {
         try {
-          const raw = await polygon.stocks.aggregates(ticker, 1, "day", "2024-04-01", "2024-05-07");
+          const raw = await polygon.stocks.aggregates(
+            ticker,
+            1,
+            "day",
+            startDate.toISOString().split('T')[0],
+            endDate.toISOString().split('T')[0]
+          );
+          
           const candles = raw.results || [];
-          const indicators = calculateIndicators(candles); // RSI, MACD, VWAP
-          return { ticker, indicators, candles };
+          if (candles.length < 14) {
+            throw new Error(`Insufficient data (${candles.length}/14 candles)`);
+          }
+
+       
+          const entryPrice = await getStockPrice(ticker) || candles.at(-1)?.c;
+          
+          return { 
+            ticker,
+            entryPrice,
+            indicators: calculateIndicators(candles),
+            success: true 
+          };
         } catch (error) {
-          return { ticker, error: error.message };
+          return { 
+            ticker,
+            error: error.message,
+            success: false 
+          };
         }
       })
     );
 
-    // 🔮 Format prompt for GPT-4 using tech indicators
-    const prompt = `You're an advanced options trader AI. Based on these technical indicators and the user's profile, suggest a trade strategy for each:
+    const validResults = results.filter(r => r.success);
+    const errors = results.filter(r => !r.success);
 
-${results.map(r => `
-Ticker: ${r.ticker}
-RSI: ${r.indicators?.rsi}
-MACD: ${JSON.stringify(r.indicators?.macd)}
-VWAP: ${r.indicators?.vwap}
+    if (validResults.length === 0) {
+      return res.status(400).json({
+        error: "Failed to analyze all tickers",
+        details: errors
+      });
+    }
+
+    const prompt = `As an expert trading AI, analyze these indicators:
+${validResults.map(r => `
+**${r.ticker}**
+- Price: $${r.entryPrice?.toFixed(2) || 'N/A'}
+- RSI: ${r.indicators.rsi?.toFixed(2) || 'N/A'}
+- VWAP: ${r.indicators.vwap?.toFixed(2) || 'N/A'}
+- MACD Histogram: ${r.indicators.macd?.histogram?.toFixed(2) || 'N/A'}
 `).join('\n')}
 
-User Capital: $${capital}
-Risk Tolerance: ${riskTolerance}
+User Profile:
+- Capital: $${capital}
+- Risk: ${riskTolerance.toUpperCase()}`;
 
-Give a call or put with strike, expiry, and brief explanation for each.`;
-
-    // 💬 Send prompt to OpenAI for trade ideas
     const gptResponse = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
         model: 'gpt-4',
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.3,
+        temperature: 0.3
       },
       {
         headers: {
@@ -109,23 +168,39 @@ Give a call or put with strike, expiry, and brief explanation for each.`;
 
     const gptReply = gptResponse.data.choices[0].message.content;
 
-    // 💾 Save to MongoDB for tracking and feedback loop
     await TradeRecommendation.create({
       tickers,
       capital,
       riskTolerance,
-      gptResponse: gptReply
+      gptResponse: gptReply,
+      entryPrice: validResults[0].entryPrice,
+      expiryDate: new Date(Date.now() + 
+        ({ high: 7, medium: 21, low: 60 }[riskTolerance] || 21) * 86400000)
     });
 
-    res.json({ analysis: gptReply });
+    res.json({
+      analysis: gptReply,
+      prices: validResults.map(r => ({
+        ticker: r.ticker,
+        price: r.entryPrice,
+        rsi: r.indicators.rsi,
+        vwap: r.indicators.vwap,
+        macd: r.indicators.macd
+      })),
+      errors
+    });
+
   } catch (error) {
-    console.error('❌ GPT analysis error:', error.message);
-    res.status(500).json({ error: 'Failed to analyze trade' });
+    console.error('Analysis Error:', error);
+    res.status(500).json({ 
+      error: 'Analysis failed',
+      details: error.message 
+    });
   }
 };
 
-// 📋 Get all trade recommendations (for dashboard or history page)
-exports.getAllTrades = async (req, res) => {
+// 📋 Get all trade recommendations
+export const getAllTrades = async (req, res) => {
   try {
     const trades = await TradeRecommendation.find().sort({ createdAt: -1 });
     res.json(trades);
@@ -134,12 +209,11 @@ exports.getAllTrades = async (req, res) => {
   }
 };
 
-// ✅ Update a trade with its final outcome and optional user notes
-exports.updateTradeOutcome = async (req, res) => {
+// ✅ Update a trade with its final outcome
+export const updateTradeOutcome = async (req, res) => {
   const { id } = req.params;
   const { outcome, userNotes } = req.body;
 
-  // Validate outcome field
   if (!['win', 'loss', 'pending'].includes(outcome)) {
     return res.status(400).json({ error: 'Invalid outcome value' });
   }
@@ -158,4 +232,3 @@ exports.updateTradeOutcome = async (req, res) => {
     res.status(500).json({ error: 'Failed to update trade outcome' });
   }
 };
-
