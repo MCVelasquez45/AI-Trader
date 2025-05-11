@@ -1,24 +1,36 @@
 // ✅ Import React (needed to define components using JSX)
-import React from 'react';
+import React, { useState } from 'react';
 
 // ✅ Import the trade form component that handles user input and GPT requests
 import TradeForm from '../components/TradeForm';
+import TradeHistory from '../components/TradeHistory';
+import { Button, Container } from 'react-bootstrap';
 
 /**
  * Dashboard Component
  * This is the main page rendered by App.jsx
- * It shows a title and the TradeForm component
+ * It toggles between TradeForm and TradeHistory
  */
 export default function Dashboard() {
+  const [showHistory, setShowHistory] = useState(false);
+
   return (
-    <div>
+    <Container className="mt-4">
       {/* Page title with emoji for branding */}
-      <h2 className="text-center mt-3">
+      {/* eslint-disable-next-line jsx-a11y/accessible-emoji */}
+      <h2 className="text-center mb-3">
         <span role="img" aria-label="brain">🧠</span> AI Trade Analyzer
       </h2>
 
-      {/* Form that handles ticker input, capital, risk, and GPT recommendation */}
-      <TradeForm />
-    </div>
+      {/* Toggle button */}
+      <div className="text-center mb-4">
+        <Button variant="primary" onClick={() => setShowHistory(!showHistory)}>
+          {showHistory ? '🔍 Back to Trade Analyzer' : '📊 View Trade History'}
+        </Button>
+      </div>
+
+      {/* Conditional rendering of views */}
+      {showHistory ? <TradeHistory /> : <TradeForm />}
+    </Container>
   );
 }

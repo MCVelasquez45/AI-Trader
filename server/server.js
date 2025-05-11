@@ -1,45 +1,48 @@
-// 🌐 Core server modules
-const express = require('express');
-const cors = require('cors');
-const dotenv = require('dotenv');
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { restClient } from '@polygon.io/client-js';
+import { connectDB } from './config/db.js';
+import tradeRoutes from './routes/tradeRoutes.js';
+import './jobs/scanTickers.js';
 
-// 📦 Custom modules
-const connectDB = require('./config/db');           // MongoDB connection
-const tradeRoutes = require('./routes/tradeRoutes'); // Main trade API routes
-require('./jobs/scanTickers');                       // Scheduled ticker scanner job
-
-// 📊 Polygon.io client setup
-const { restClient } = require('@polygon.io/client-js');
-
-// 🔐 Load environment variables from .env file
 dotenv.config();
 
-// 🔧 Initialize Express app
 const app = express();
-
-// Enable JSON parsing and CORS support
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
 
-// 🛢️ Connect to MongoDB using Mongoose
-connectDB();
+// Database connection
+connectDB().catch(err => {
+  console.error('❌ FATAL: MongoDB connection failed:', err);
+  process.exit(1);
+});
 
-// 🔗 Set up Polygon client using your API key
-const polygon = restClient(process.env.POLY_API_KEY);
-
-// ✅ Log env variables to confirm they're loaded (useful for debugging)
-console.log("🧪 ENV check (backend)");
-console.log("POLY_API_KEY:", process.env.POLY_API_KEY ? '✔️ loaded' : '❌ missing');
-console.log("OPENAI_API_KEY:", process.env.OPENAI_API_KEY ? '✔️ loaded' : '❌ missing');
-console.log("MONGO_URI:", process.env.MONGO_URI ? '✔️ loaded' : '❌ missing');
-
-// Make Polygon client accessible to all controllers via app context
+// Polygon client setup
+const POLY_API_KEY = process.env.POLY_API_KEY;
+if (!POLY_API_KEY) {
+  console.error('❌ FATAL: POLY_API_KEY missing from environment');
+  process.exit(1);
+}
+const polygon = restClient(POLY_API_KEY);
 app.set('polygon', polygon);
 
-// 📘 Mount trade-related routes under the `/api` prefix
+// Routes
 app.use('/api', tradeRoutes);
 
-// 🚀 Start the Express server
-app.listen(4545, () => {
-  console.log('✅ Express server running on http://localhost:4545');
+// Error handling
+app.use((err, req, res, next) => {
+  console.error('🔥 Error:', err.stack);
+  res.status(500).json({ 
+    error: 'Internal Server Error',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  });
+});
+
+const PORT = process.env.PORT || 4545;
+app.listen(PORT, () => {
+  console.log(`✅ Server running on http://localhost:${PORT}`);
 });

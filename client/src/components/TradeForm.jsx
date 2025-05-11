@@ -1,77 +1,125 @@
 import React, { useState } from 'react';
-import { analyzeTrade } from '../api/tradeApi'; // API call to backend
-import { Form, Button, Container, Alert } from 'react-bootstrap';
-import TypingDots from '../components/TypingDots'; // Animated "GPT is thinking..." indicator
+import { analyzeTrade } from '../api/tradeApi';
+import { Form, Button, Alert } from 'react-bootstrap';
+import TypingDots from './TypingDots';
 
-/**
- * TradeForm Component
- * Allows users to input tickers, capital, and risk level to get GPT trade recommendations
- */
 export default function TradeForm() {
-  // 🧠 Local state for form inputs and result handling
-  const [formData, setFormData] = useState({ tickers: '', capital: '', riskTolerance: 'medium' });
-  const [result, setResult] = useState(null);     // GPT result
-  const [loading, setLoading] = useState(false);  // Whether we're waiting on GPT
+  const [formData, setFormData] = useState({
+    tickers: '',
+    capital: '',
+    riskTolerance: 'medium'
+  });
+  const [result, setResult] = useState(null);
+  const [prices, setPrices] = useState([]);
+  const [errors, setErrors] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // Handle form input changes (dynamic field name binding)
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
-
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);      // Show loading spinner
-    setResult(null);       // Clear old result
+    const tickers = formData.tickers
+      .split(',')
+      .map(t => t.trim().toUpperCase())
+      .filter(t => t);
 
-    // Prepare payload for backend
-    const payload = {
-      tickers: formData.tickers.split(',').map(t => t.trim().toUpperCase()),
-      capital: Number(formData.capital),
-      riskTolerance: formData.riskTolerance
-    };
+    if (!tickers.length) {
+      setErrors([{ error: 'Please enter at least one valid ticker' }]);
+      return;
+    }
 
-    // 🔥 Call the API and update state with GPT result
-    const data = await analyzeTrade(payload);
-    setResult(data.analysis);
+    if (!formData.capital || isNaN(formData.capital)) {
+      setErrors([{ error: 'Please enter valid capital amount' }]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { analysis, prices, errors } = await analyzeTrade({
+        tickers,
+        capital: Number(formData.capital),
+        riskTolerance: formData.riskTolerance
+      });
+      
+      setResult(analysis);
+      setPrices(prices || []);
+      setErrors(errors || []);
+      
+    } catch (error) {
+      setErrors([{ error: error.message || 'Analysis failed' }]);
+    }
     setLoading(false);
   };
 
   return (
-    <Container className="mt-4" style={{ maxWidth: '700px' }}>
-      {/* 📋 Form for user inputs */}
+    <div className="p-4">
       <Form onSubmit={handleSubmit}>
-        <Form.Group>
-          <Form.Label>Tickers</Form.Label>
-          <Form.Control name="tickers" placeholder="e.g. SOFI, AAPL" onChange={handleChange} />
+        <Form.Group className="mb-3">
+          <Form.Label>Tickers (comma-separated)</Form.Label>
+          <Form.Control
+            name="tickers"
+            placeholder="SOFI, AAPL, TSLA"
+            onChange={(e) => setFormData({...formData, tickers: e.target.value})}
+          />
         </Form.Group>
 
-        <Form.Group className="mt-2">
+        <Form.Group className="mb-3">
           <Form.Label>Capital ($)</Form.Label>
-          <Form.Control name="capital" type="number" placeholder="200" onChange={handleChange} />
+          <Form.Control
+            name="capital"
+            type="number"
+            min="100"
+            step="50"
+            onChange={(e) => setFormData({...formData, capital: e.target.value})}
+          />
         </Form.Group>
 
-        <Form.Group className="mt-2">
+        <Form.Group className="mb-3">
           <Form.Label>Risk Tolerance</Form.Label>
-          <Form.Select name="riskTolerance" onChange={handleChange} defaultValue="medium">
+          <Form.Select 
+            name="riskTolerance"
+            value={formData.riskTolerance}
+            onChange={(e) => setFormData({...formData, riskTolerance: e.target.value})}
+          >
             <option value="low">Low</option>
             <option value="medium">Medium</option>
             <option value="high">High</option>
           </Form.Select>
         </Form.Group>
 
-        <Button className="mt-3" type="submit">Analyze</Button>
+        <Button variant="primary" type="submit" disabled={loading}>
+          {loading ? 'Analyzing...' : 'Analyze Trade'}
+        </Button>
       </Form>
 
-      {/* ✅ Output section: shows loader or GPT result */}
-      <div className="mt-4" style={{ position: 'sticky', top: '1rem', zIndex: 10 }}>
-        {loading && <TypingDots />}  {/* Animated loader */}
-        {result && (
-          <Alert variant="success">
-            <Alert.Heading>GPT Trade Recommendation</Alert.Heading>
-            <div style={{ whiteSpace: 'pre-wrap' }}>{result}</div> {/* Preserves line breaks */}
-          </Alert>
-        )}
-      </div>
-    </Container>
+      {loading && <TypingDots />}
+
+      {errors.length > 0 && (
+        <Alert variant="danger" className="mt-3">
+          {errors.map((e, idx) => (
+            <div key={idx}>{e.error}</div>
+          ))}
+        </Alert>
+      )}
+
+      {prices.length > 0 && (
+        <div className="mt-3">
+          <h5>Market Data</h5>
+          {prices.map((p, idx) => (
+            <div key={idx} className="mb-2">
+              <strong>{p.ticker}:</strong> ${p.price?.toFixed(2)}<br />
+              RSI: {p.rsi?.toFixed(2) || '—'}, 
+              VWAP: {p.vwap?.toFixed(2) || '—'}, 
+              MACD: {p.macd?.histogram?.toFixed(2) || '—'}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {result && (
+        <Alert variant="success" className="mt-3">
+          <Alert.Heading>Trade Recommendation</Alert.Heading>
+          <pre style={{ whiteSpace: 'pre-wrap' }}>{result}</pre>
+        </Alert>
+      )}
+    </div>
   );
 }
-
