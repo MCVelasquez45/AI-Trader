@@ -1,136 +1,149 @@
-# 📊 AI Trade Analyzer – Full-Stack GPT-Powered Trading Assistant
+# 🧠 AI-Trader
 
-This full-stack application uses real-time market data, technical indicators (RSI, MACD, VWAP), and GPT-4 to generate intelligent options trading recommendations based on user-defined capital and risk tolerance.
-
----
-
-## ⚙️ Tech Stack
-
-### Backend
-
-* Node.js
-* Express
-* MongoDB
-* Polygon.io API (real-time stock data)
-* OpenAI GPT-4 API (trade strategy analysis)
-* Cron Jobs (real-time ticker scanning)
-
-### Frontend
-
-* React
-* Bootstrap 5
-* Axios
+> An AI-powered trading assistant that analyzes stock indicators and provides GPT-4-generated trade recommendations based on user risk tolerance and capital.
 
 ---
 
-## 🧠 Key Features
+## 🚀 Project Overview
 
-* GPT-4 powered trade analysis based on technical indicators
-* Cron-based scanner saves live ticker data every 5 minutes
-* RSI, MACD, and VWAP calculated in real-time
-* Manual win/loss tracking with user notes
-* Feedback loop for learning from trade outcomes
-* Typing animation while GPT response is pending
-* REST API for trades, outcomes, and historical stats
-* Designed for expansion with rule-based and hybrid strategies
+**AI-Trader** is a full-stack application designed to support traders with AI-generated insights. It:
+
+* Accepts user inputs: ticker symbols, risk tolerance, and capital
+* Pulls live market data using Polygon.io and Yahoo Finance
+* Calculates technical indicators (RSI, VWAP, MACD)
+* Sends data to GPT-4 to generate a trade strategy recommendation
+* Stores all trade recommendations and their outcomes in MongoDB
+* Includes auto-evaluation logic for determining trade outcomes
 
 ---
 
-## 🚀 Getting Started
+## 🔧 MVP Tech Stack
 
-### 1. Clone the Repo
+| Layer           | Technology                        |
+| --------------- | --------------------------------- |
+| Frontend        | Vite + React + Bootstrap          |
+| Backend         | Node.js + Express + Vercel/Render |
+| AI Integration  | OpenAI GPT-4 API                  |
+| Market Data     | Polygon.io + Yahoo Finance        |
+| Database        | MongoDB Atlas                     |
+| Auth (optional) | Auth0 or Supabase Auth            |
+| Hosting         | Vercel (Frontend), Railway (API)  |
+| Shortcut Domain | Optional: `.new` via Google       |
 
-```bash
-git clone https://github.com/yourusername/ai-trader.git
-cd ai-trader
+---
+
+## ✅ Key Features
+
+* **TradeForm**: Users enter tickers, capital, and risk level
+* **AI Analysis**: GPT-4 interprets market indicators and returns a recommendation
+* **Trade History**: Stores and displays all past trades, entry/exit price, and outcome
+* **Auto Evaluation**: Trades are re-evaluated after expiry to determine win/loss status
+
+---
+
+## 📂 Directory Structure
+
+```
+AI-Trader/
+├── server/                # Express backend
+│   ├── controllers/       # Main API logic
+│   ├── jobs/              # Scheduled tasks (e.g., auto-evaluation)
+│   ├── models/            # Mongoose models
+│   ├── routes/            # Express routes
+│   ├── utils/             # Indicator calculations, price fetching
+│   └── server.js          # Main server entry point
+│
+├── client/                # Vite + React frontend
+│   ├── src/
+│   │   ├── components/    # TradeForm, TradeHistory
+│   │   ├── api/           # Axios API helpers
+│   │   ├── pages/         # Dashboard
+│   │   └── App.jsx        # Main entry
+│
+├── .env                   # Environment variables (not committed)
+└── README.md              # Project documentation
 ```
 
-### 2. Setup Backend
+---
+
+## 🧪 Local Setup
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/MCVelasquez45/AI-Trader.git
+cd AI-Trader
+```
+
+### 2. Backend Setup
 
 ```bash
 cd server
 npm install
-cp .env.example .env
-# Edit .env to include your POLY_API_KEY, OPENAI_API_KEY, and MONGO_URI
-node server.js
+cp .env.example .env  # Add MongoDB, OpenAI, and Polygon keys
+npm run dev
 ```
 
-### 3. Setup Frontend
+### 3. Frontend Setup
 
 ```bash
-cd client
+cd ../client
 npm install
-cp .env.example .env
-# Edit .env to set REACT_APP_API_URL=http://localhost:4545/api
-npm start
+cp .env.example .env  # Add VITE_API_URL if needed
+npm run dev
+```
+
+### 4. (Optional) Evaluate Expired Trades
+
+```bash
+cd server
+node jobs/evaluateExpiredTrades.js
 ```
 
 ---
 
-## 📂 Project Structure
+## 📈 Live Preview
 
-```
-ai-trader/
-├── server/
-│   ├── config/
-│   ├── controllers/
-│   ├── jobs/
-│   ├── models/
-│   ├── routes/
-│   └── utils/
-├── client/
-│   ├── public/
-│   └── src/
-│       ├── api/
-│       ├── components/
-│       ├── pages/
-│       ├── App.jsx
-│       └── index.js
-```
+Coming soon — deployed version on Vercel with `.new` domain support.
 
 ---
 
-## 🧪 Sample .env Files
+## ✨ Roadmap
 
-### Backend (`server/.env`)
-
-```
-POLY_API_KEY=your_polygon_api_key
-OPENAI_API_KEY=your_openai_api_key
-MONGO_URI=mongodb://localhost:27017/ai-trader
-```
-
-### Frontend (`client/.env`)
-
-```
-REACT_APP_API_URL=http://localhost:4545/api
-```
+* [x] GPT integration
+* [x] Technical indicator calculations
+* [x] Trade history storage
+* [x] Expiry-based trade evaluation
+* [ ] User authentication (Supabase/Auth0)
+* [ ] Chart overlays for RSI/MACD
+* [ ] `.new` domain launch for instant access
+* [ ] Multi-user dashboards
 
 ---
 
-## 📈 Future Roadmap
+## 🛡 Security Notes
 
-* Add rule-based strategy engine
-* Auto-evaluate trades from market movement
-* Multi-user support and authentication
-* Admin dashboard with performance analytics
-* Email/SMS alerts using Twilio or SendGrid
+* All sensitive API keys are stored server-side only
+* Rate limiting and validation are used to protect backend endpoints
+* MongoDB access is IP-restricted and protected with environment secrets
 
 ---
 
-## 👤 Author
+## 🤝 Contributing
 
-**Mark Velasquez**
-Remote Instructor | MERN Developer | AI & Market Automation Enthusiast
-[GitHub Profile](https://github.com/yourusername) [https://github.com/MCVelasquez45](https://github.com/MCVelasquez45)
+Pull requests and issues are welcome. Please fork the repo and open a PR with a clear description.
 
 ---
 
-## 📝 License
+## 📜 License
 
 MIT License
 
-Copyright (c) 2025 Mark Velasquez
+Copyright (c) 2025 Mark Velasquez and Patrick Mikes
+
+This project, including its architecture, technical implementations, and trade analysis methodology, is the intellectual property of Mark Velasquez. While the AI-Trader system is released under the MIT license to encourage open collaboration and innovation, all core technologies and design patterns are protected under copyright.
+
+We actively welcome contributors who share our mission of improving access to intelligent trading tools. By contributing, you agree that your contributions may be incorporated into this copyrighted work and redistributed under the terms of this license.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -150,6 +163,17 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-This project is for educational purposes and trade experimentation. Not financial advice.
+
+---
+
+## 👨‍💼 Maintainers
+
+**Mark Velasquez**
+Remote Instructor, Full-Stack Developer
+[GitHub Profile](https://github.com/MCVelasquez45)
+
+**Pat Mikes**
+Remote Instructor,Full-Stack Developer
+[GitHub Profile](https://github.com/patmikesdev/patmikesdev)
 
 
