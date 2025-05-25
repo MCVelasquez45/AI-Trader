@@ -1,46 +1,70 @@
 import { RSI, MACD, VWAP } from 'technicalindicators';
 
 export default function calculateIndicators(candles) {
-  if (!candles || candles.length < 14) {
-    throw new Error('Minimum 14 data points required');
+  const indicators = {
+    rsi: null,
+    vwap: null,
+    macd: {
+      histogram: null,
+      signal: null,
+      macd: null
+    }
+  };
+
+  const closes = candles.map(c => c.c);
+  const highs = candles.map(c => c.h ?? c.c);
+  const lows = candles.map(c => c.l ?? c.c);
+  const volumes = candles.map(c => c.v ?? 1000);
+
+  if (closes.length < 26) {
+    console.warn('❌ Not enough data points to calculate indicators');
+    return indicators;
   }
 
-  const close = candles.map(c => c.c);
-  const high = candles.map(c => c.h);
-  const low = candles.map(c => c.l);
-  const volume = candles.map(c => c.v);
+  // ✅ RSI
+  try {
+    const rsiResult = RSI.calculate({ values: closes, period: 14 });
+    indicators.rsi = rsiResult.at(-1) ?? null;
+  } catch (err) {
+    console.warn('❌ RSI calculation failed:', err.message);
+  }
 
-  // RSI Calculation
-  const rsi = RSI.calculate({
-    values: close,
-    period: 14
-  }).slice(-1)[0];
+  // ✅ VWAP
+  try {
+    const vwapResult = VWAP.calculate({
+      close: closes,
+      high: highs,
+      low: lows,
+      volume: volumes
+    });
 
-  // MACD Calculation
-  const macd = MACD.calculate({
-    values: close,
-    fastPeriod: 12,
-    slowPeriod: 26,
-    signalPeriod: 9,
-    SimpleMAOscillator: false,
-    SimpleMASignal: false
-  }).slice(-1)[0];
+    indicators.vwap = vwapResult.at(-1)?.vwap ?? null;
+  } catch (err) {
+    console.warn('❌ VWAP calculation failed:', err.message);
+  }
 
-  // VWAP Calculation
-  const vwap = VWAP.calculate({
-    close,
-    high,
-    low,
-    volume
-  }).slice(-1)[0];
+  // ✅ MACD
+  try {
+    const macdResult = MACD.calculate({
+      values: closes,
+      fastPeriod: 12,
+      slowPeriod: 26,
+      signalPeriod: 9,
+      SimpleMAOscillator: false,
+      SimpleMASignal: false
+    });
 
-  return {
-    rsi: rsi ? Number(rsi.toFixed(2)) : null,
-    macd: {
-      histogram: macd?.histogram ? Number(macd.histogram.toFixed(2)) : null,
-      macd: macd?.MACD ? Number(macd.MACD.toFixed(2)) : null,
-      signal: macd?.signal ? Number(macd.signal.toFixed(2)) : null
-    },
-    vwap: vwap ? Number(vwap.toFixed(2)) : null
-  };
+    const latest = macdResult.at(-1);
+    if (latest) {
+      indicators.macd = {
+        macd: latest.MACD ?? null,
+        signal: latest.signal ?? null,
+        histogram: latest.histogram ?? null
+      };
+    }
+  } catch (err) {
+    console.warn('❌ MACD calculation failed:', err.message);
+  }
+
+  return indicators;
 }

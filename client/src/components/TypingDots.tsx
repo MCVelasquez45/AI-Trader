@@ -1,25 +1,26 @@
-// ✅ Import React to define the component
 import React from 'react';
 
 /**
  * TypingDots Component
- * Shows a "GPT is thinking..." message with animated blinking dots.
+ * Displays an inline "GPT is thinking..." animation with three blinking dots.
  */
-export default function TypingDots() {
+const TypingDots: React.FC = () => {
   return (
     <div style={{ fontSize: '1.2rem', fontWeight: 'bold', paddingTop: '10px' }}>
       GPT is thinking
       <span className="typing-dots">
-        {/* Three animated dots */}
+        {/* Animated blinking dots */}
         <span>.</span>
         <span>.</span>
         <span>.</span>
       </span>
 
-      {/* Inline style block to define blinking animation */}
+      {/* Inline style block to define staggered blink animation */}
       <style>
         {`
           .typing-dots span {
+            display: inline-block;
+            opacity: 0;
             animation: blink 1.5s infinite;
           }
 
@@ -39,4 +40,6 @@ export default function TypingDots() {
       </style>
     </div>
   );
-}
+};
+
+export default TypingDots;
