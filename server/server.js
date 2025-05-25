@@ -10,10 +10,12 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
+
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: ['http://localhost:5173', 'http://localhost:3000'],
   credentials: true
 }));
+
 
 // Database connection
 connectDB().catch(err => {
@@ -21,13 +23,14 @@ connectDB().catch(err => {
   process.exit(1);
 });
 
-// Polygon client setup
-const POLY_API_KEY = process.env.POLY_API_KEY;
-if (!POLY_API_KEY) {
-  console.error('❌ FATAL: POLY_API_KEY missing from environment');
+// ✅ FIXED: Use POLYGON_API_KEY instead
+const POLYGON_API_KEY = process.env.POLYGON_API_KEY;
+if (!POLYGON_API_KEY) {
+  console.error('❌ FATAL: POLYGON_API_KEY missing from environment');
   process.exit(1);
 }
-const polygon = restClient(POLY_API_KEY);
+
+const polygon = restClient(POLYGON_API_KEY);
 app.set('polygon', polygon);
 
 // Routes

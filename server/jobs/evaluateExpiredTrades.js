@@ -1,3 +1,6 @@
+import { TradeRecommendation } from '../models/TradeRecommendation.js';
+import polygon from '../utils/polygonClient.js';
+
 async function evaluateExpiredTrades() {
   try {
     const now = new Date();
@@ -7,18 +10,13 @@ async function evaluateExpiredTrades() {
       entryPrice: { $ne: null }
     });
 
-    console.log(`Evaluating ${trades.length} expired trades...`);
-
     for (const trade of trades) {
-      for (const ticker of trade.tickers) { // Process all tickers
+      for (const ticker of trade.tickers) {
         try {
           const lastTrade = await polygon.stocks.lastTrade(ticker);
           const exitPrice = lastTrade?.results?.p;
-          
-          if (!exitPrice) {
-            console.warn(`No exit price for ${ticker}`);
-            continue;
-          }
+
+          if (!exitPrice) continue;
 
           let outcome = 'pending';
           if (trade.recommendationDirection === 'call') {
@@ -27,18 +25,12 @@ async function evaluateExpiredTrades() {
             outcome = exitPrice < trade.entryPrice ? 'win' : 'loss';
           }
 
-          // Update trade with ticker-specific outcome
           trade.exitPrices = trade.exitPrices || {};
           trade.exitPrices[ticker] = exitPrice;
           trade.outcome = outcome;
           trade.markModified('exitPrices');
           await trade.save();
-
-          console.log(`${ticker} evaluation saved`);
-
         } catch (err) {
-          console.error(`Error evaluating ${ticker}:`, err.message);
-          // Store evaluation error
           trade.evaluationErrors = trade.evaluationErrors || [];
           trade.evaluationErrors.push({
             ticker,
@@ -49,11 +41,13 @@ async function evaluateExpiredTrades() {
         }
       }
     }
-    
-    console.log('Evaluation completed');
+
+    console.log('✅ Evaluation complete');
     process.exit(0);
   } catch (err) {
-    console.error('Evaluation failed:', err);
+    console.error('❌ Evaluation failed:', err.message);
     process.exit(1);
   }
 }
+
+export default evaluateExpiredTrades;

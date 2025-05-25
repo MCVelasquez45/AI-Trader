@@ -1,4 +1,5 @@
-import mongoose from 'mongoose';  // Correct import syntax
+// server/models/TradeScan.js
+import mongoose from 'mongoose';
 
 const tradeScanSchema = new mongoose.Schema({
   ticker: {
@@ -7,12 +8,12 @@ const tradeScanSchema = new mongoose.Schema({
     index: true
   },
   candles: [{
-    o: Number,  // open
-    h: Number,  // high
-    l: Number,  // low
-    c: Number,  // close
-    v: Number,  // volume
-    t: Number   // timestamp
+    o: Number,
+    h: Number,
+    l: Number,
+    c: Number,
+    v: Number,
+    t: Number
   }],
   scannedAt: {
     type: Date,
@@ -20,5 +21,4 @@ const tradeScanSchema = new mongoose.Schema({
   }
 });
 
-// Create and export model
 export const TradeScan = mongoose.model('TradeScan', tradeScanSchema);

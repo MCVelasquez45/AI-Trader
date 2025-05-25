@@ -1,37 +1,61 @@
-import cron from 'node-cron';
-import mongoose from 'mongoose';
-import { restClient } from '@polygon.io/client-js';
-import { TradeScan } from '../models/TradeScan.js';
+import getStockPrice from '../utils/getStockPrice.js';
+import calculateIndicators from '../utils/calculateIndicators.js';
+import getAffordableOptionContracts from '../utils/getAffordableOptionContracts.js';
+import axios from 'axios';
 
-const polygon = restClient(process.env.POLY_API_KEY);
-const tickerList = ['SOFI', 'AAPL', 'TSLA'];
+const scanTickers = async ({ tickers, capital, riskTolerance }) => {
+  const apiKey = process.env.POLYGON_API_KEY;
 
-const fetchAggregate = async (ticker) => {
-  try {
-    const data = await polygon.stocks.aggregates(
-      ticker,
-      1,
-      'minute',
-      new Date(Date.now() - 5 * 60 * 1000).toISOString().split('T')[0],
-      new Date().toISOString().split('T')[0]
-    );
-    return data.results || [];
-  } catch (error) {
-    console.error(`Error fetching ${ticker}:`, error.message);
-    return null;
-  }
-};
+  for (const ticker of tickers) {
+    console.log(`\n📡 Scanning ${ticker}`);
 
-const scanTickers = async () => {
-  console.log('⏱️ Starting ticker scan...');
-  for (const ticker of tickerList) {
-    const data = await fetchAggregate(ticker);
-    if (data?.length) {
-      await TradeScan.create({ ticker, candles: data });
-      console.log(`📈 Saved ${ticker} data`);
+    const price = await getStockPrice(ticker);
+    if (!price) continue;
+
+    console.log(`💰 ${ticker} price: ${price}`);
+
+    // Fetch candles
+    let candles = [];
+    try {
+      const from = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const to = new Date().toISOString().split('T')[0];
+      const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/day/${from}/${to}?adjusted=true&sort=asc&limit=120&apiKey=${apiKey}`;
+
+      const response = await axios.get(url);
+      candles = response.data.results.map(c => ({
+        c: c.c,
+        h: c.h,
+        l: c.l,
+        v: c.v
+      }));
+    } catch (err) {
+      console.warn(`❌ Failed to fetch candles for ${ticker}:`, err.message);
+    }
+
+    // Indicators
+    const { rsi, vwap, macd } = calculateIndicators(candles);
+
+    try {
+      const { contracts } = await getAffordableOptionContracts({
+        ticker,
+        capital,
+        riskTolerance,
+        rsi,
+        vwap,
+        macd,
+        apiKey
+      });
+
+      if (!contracts?.length) {
+        console.warn(`⚠️ No affordable contracts found for ${ticker}`);
+        continue;
+      }
+
+      console.log(`📥 ${contracts.length} contracts for ${ticker}`);
+    } catch (err) {
+      console.error(`❌ Contract scan error for ${ticker}:`, err.message);
     }
   }
-  console.log('✅ Scan complete\n');
 };
 
-cron.schedule('*/5 * * * *', scanTickers);
+export default scanTickers;
