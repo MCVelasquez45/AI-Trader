@@ -31,6 +31,30 @@ interface Trade {
   _id?: string;
 }
 
+// ✅ Helper to render congressional links
+const renderCongressTrades = (text?: string) => {
+  if (!text) return 'N/A';
+  return (
+    <div style={{ whiteSpace: 'pre-wrap' }}>
+      {text.split('\n').map((line, index) =>
+        line.startsWith('Link: ') ? (
+          <div key={index}>
+            🔗 <a
+              href={line.replace('Link: ', '').trim()}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {line.replace('Link: ', '').trim()}
+            </a>
+          </div>
+        ) : (
+          <div key={index}>{line}</div>
+        )
+      )}
+    </div>
+  );
+};
+
 const TradeHistory: React.FC = () => {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -115,7 +139,7 @@ const TradeHistory: React.FC = () => {
                             <Accordion.Item eventKey="1">
                               <Accordion.Header>🏛️ Congressional Trade Activity </Accordion.Header>
                               <Accordion.Body>
-                                <pre style={{ whiteSpace: 'pre-wrap' }}>{trade.congressTrades || 'N/A'}</pre>
+                                {renderCongressTrades(trade.congressTrades)}
                               </Accordion.Body>
                             </Accordion.Item>
                           </Accordion>

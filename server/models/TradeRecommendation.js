@@ -1,33 +1,40 @@
+// server/models/TradeRecommendation.js
 import mongoose from 'mongoose';
 
 const tradeSchema = new mongoose.Schema({
-  tickers: { type: [String], required: true },
-  capital: { type: Number, required: true },
-  riskTolerance: { type: String, enum: ['low', 'medium', 'high'], required: true },
-  gptResponse: { type: String, required: true },
-  gptPrompt: { type: String },
-
-  entryPrice: { type: Number }, // stock entry price
+  tickers: [String],
+  capital: Number,
+  riskTolerance: {
+    type: String,
+    enum: ['low', 'medium', 'high']
+  },
+  entryPrice: Number,
+  expiryDate: Date,
+  targetPrice: Number,
+  stopLoss: Number,
 
   option: {
-    contract: { type: String },
-    strike: { type: Number },
-    estimatedCost: { type: Number },
-    expiration: { type: String },
-    sharesPerContract: { type: Number },
-    style: { type: String }
+    ticker: String,
+    strike_price: Number,
+    expiration_date: String,
+    ask: Number,
+    bid: Number,
+    implied_volatility: Number,
+    delta: Number,
+    gamma: Number,
+    theta: Number,
+    vega: Number,
+    open_interest: Number
   },
 
-  expiryDate: { type: Date, required: true },
-  outcome: { type: String, enum: ['win', 'loss', 'pending'], default: 'pending' },
-
-  // ✅ NEW FIELDS
+  gptPrompt: String,
+  gptResponse: String,
   recommendationDirection: {
     type: String,
     enum: ['call', 'put', 'hold', 'unknown'],
     default: 'unknown'
   },
-  confidence: { type: String, default: 'unknown' },
+  confidence: String,
 
   indicators: {
     rsi: Number,
@@ -39,15 +46,8 @@ const tradeSchema = new mongoose.Schema({
     }
   },
 
-  congressTrades: {
-    type: String,
-    default: 'Not available'
-  },
-  
-  sentimentSummary: {
-    type: String,
-    default: 'Not available'
-  },
+  congressTrades: String,
+  sentimentSummary: String,
 
   evaluationErrors: [{
     ticker: String,
@@ -55,7 +55,17 @@ const tradeSchema = new mongoose.Schema({
     timestamp: Date
   }],
 
-  createdAt: { type: Date, default: Date.now }
+  outcome: {
+    type: String,
+    enum: ['win', 'loss', 'pending'],
+    default: 'pending'
+  },
+
+  userNotes: String,
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
 });
 
 export const TradeRecommendation = mongoose.model('TradeRecommendation', tradeSchema);

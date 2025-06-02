@@ -1,4 +1,5 @@
-// ✅ Final version: controllers/analyzeTrade.js — with filtered congressional trades
+// ✅ controllers/tradeController.js
+
 import getStockPrice from '../utils/getStockPrice.js';
 import getMinuteCandles from '../utils/getMinuteCandles.js';
 import calculateIndicators from '../utils/calculateIndicators.js';
@@ -8,6 +9,8 @@ import { runOptionAssistant } from '../utils/openaiAssistant.js';
 import { TradeRecommendation } from '../models/TradeRecommendation.js';
 import getNewsSentiment from '../utils/getNewsSentiment.js';
 import getCongressTrades from '../utils/getCongressTrades.js';
+import getIssuerId from '../scrapers/tickerToIssuerId.js';
+import scrapeCapitolTrades from '../scrapers/scrapeCapitolTrades.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -121,6 +124,7 @@ export const validateTradeRequest = (req, res, next) => {
 };
 
 
+
 export const analyzeTrade = async (req, res) => {
   try {
     const { capital, riskTolerance, watchlist } = req.body;
@@ -140,17 +144,44 @@ export const analyzeTrade = async (req, res) => {
         console.warn(`⚠️ Skipping ${ticker} — no stock price found.`);
         continue;
       }
+
       console.log(`💵 Current Price for ${ticker}: $${price}`);
 
       const candles = await getMinuteCandles(ticker);
       const indicators = await calculateIndicators(candles);
-      const rsi = indicators.rsi ?? null;
-      const vwap = indicators.vwap ?? null;
-      const macd = indicators.macd?.histogram ?? null;
-      console.log(`📈 Indicators for ${ticker} — RSI: ${rsi}, VWAP: ${vwap}, MACD Hist: ${macd}`);
+      const { rsi, vwap, macd } = indicators;
+      console.log(`📈 Indicators for ${ticker} — RSI: ${rsi}, VWAP: ${vwap}, MACD Hist: ${macd?.histogram}`);
 
       const newsHeadlines = await getNewsSentiment(ticker);
-      const congressActivity = await getCongressTrades(ticker);
+
+      // 🏛️ Scrape trades via issuerId
+      let congressActivity = 'Not available';
+      try {
+        const issuerId = await getIssuerId(ticker);
+        const trades = await scrapeCapitolTrades(issuerId);
+
+        if (trades.length > 0) {
+          console.log(`📣 Raw Trades for Issuer ID ${issuerId}:\n`);
+          trades.forEach((tx, idx) => {
+            console.log(`#${idx + 1}`);
+            console.log(`🧑 ${tx.representative}`);
+            console.log(`📆 ${tx.date}`);
+            console.log(`💼 ${tx.type?.toUpperCase()} for ${tx.amount}`);
+            console.log(`🔗 ${tx.link}`);
+            console.log('---');
+          });
+
+          congressActivity = trades.map(tx => (
+            `${tx.representative} ${tx.type?.toUpperCase()} (${tx.amount}) on ${tx.date}\nLink: ${tx.link}`
+          )).join('\n');
+        } else {
+          console.warn(`⚠️ No trades found for issuer ${issuerId}`);
+          congressActivity = await getCongressTrades(ticker); // fallback
+        }
+      } catch (err) {
+        console.warn(`❌ tickerToIssuerId error for ${ticker}:`, err.message);
+        congressActivity = await getCongressTrades(ticker); // fallback
+      }
 
       const sentimentPrompt = `
 Summarize the sentiment of the following news headlines for ${ticker}. Just return one sentence like "The overall sentiment is positive", "neutral", or "negative".
@@ -159,11 +190,10 @@ Headlines:
 ${newsHeadlines}`.trim();
 
       let sentimentSummary = 'Not available';
-
       try {
         const sentimentResponse = await runOptionAssistant(sentimentPrompt);
         sentimentSummary = sentimentResponse.trim().replace(/^"|"$/g, '');
-        console.log(`🧠 News Sentiment for ${ticker}:`, sentimentSummary);
+        console.log(`🧠 News Sentiment for ${ticker}: ${sentimentSummary}`);
       } catch (err) {
         console.warn(`⚠️ Failed to summarize sentiment for ${ticker}:`, err.message);
       }
@@ -182,7 +212,6 @@ ${newsHeadlines}`.trim();
 
       const best = contracts[0];
       const snapshot = await getOptionSnapshot(ticker, best.ticker);
-
       const snapshotText = snapshot
         ? `\nImplied Volatility: ${snapshot.implied_volatility ?? 'N/A'}\nDelta: ${snapshot.delta ?? 'N/A'}\nOpen Interest: ${snapshot.open_interest ?? 'N/A'}`
         : '';
@@ -202,9 +231,9 @@ Capital Available: $${capital}
 Technical Indicators:
   - RSI: ${rsi}
   - VWAP: ${vwap}
-  - MACD: ${indicators.macd?.macd}
-  - MACD Signal: ${indicators.macd?.signal}
-  - MACD Histogram: ${indicators.macd?.histogram}${snapshotText}
+  - MACD: ${macd?.macd}
+  - MACD Signal: ${macd?.signal}
+  - MACD Histogram: ${macd?.histogram}${snapshotText}
 
 Recent News Headlines:
 ${newsHeadlines}
@@ -212,12 +241,10 @@ ${newsHeadlines}
 Congressional Trading Activity:
 ${congressActivity}`.trim();
 
-      console.log(`📤 GPT Prompt for ${ticker}:
-${prompt}`);
+      console.log(`📤 GPT Prompt for ${ticker}:\n${prompt}`);
 
       const gptResponse = await runOptionAssistant(prompt);
-      console.log(`🤖 Raw GPT Response for ${ticker}:
-${gptResponse}`);
+      console.log(`🤖 Raw GPT Response for ${ticker}:\n${gptResponse}`);
 
       let recommendation = null;
       let confidence = null;
@@ -252,11 +279,7 @@ ${gptResponse}`);
         gptResponse: explanation,
         recommendationDirection: recommendation,
         confidence,
-        indicators: {
-          rsi,
-          vwap,
-          macd: indicators.macd ?? null
-        },
+        indicators: { rsi, vwap, macd },
         congressTrades: congressActivity,
         sentimentSummary,
         targetPrice,
@@ -277,9 +300,6 @@ ${gptResponse}`);
     res.status(500).json({ error: 'Trade analysis failed' });
   }
 };
-
-
-
 // 📋 Get all trade recommendations
 export const getAllTrades = async (req, res) => {
   try {

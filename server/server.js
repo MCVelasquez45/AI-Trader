@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { restClient } from '@polygon.io/client-js';
 import { connectDB } from './config/db.js';
 import tradeRoutes from './routes/tradeRoutes.js';
+import scrapeRoute from './routes/scraperRoutes.js';
 import './jobs/scanTickers.js';
 
 dotenv.config();
@@ -15,7 +16,6 @@ app.use(cors({
   origin: ['http://localhost:5173', 'http://localhost:3000'],
   credentials: true
 }));
-
 
 // Database connection
 connectDB().catch(err => {
@@ -36,10 +36,12 @@ app.set('polygon', polygon);
 // Routes
 app.use('/api', tradeRoutes);
 
+app.use('/api', scrapeRoute);
+
 // Error handling
 app.use((err, req, res, next) => {
   console.error('🔥 Error:', err.stack);
-  res.status(500).json({ 
+  res.status(500).json({
     error: 'Internal Server Error',
     message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
   });
