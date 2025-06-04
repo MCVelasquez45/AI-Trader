@@ -14,16 +14,19 @@ const app = express();
 // ✅ Enable JSON parsing for incoming requests
 app.use(express.json());
 
-// ✨ FULL fix for CORS issues
+
+
+// ✅ Allow requests from both localhost (dev) and Vercel (prod)
 app.use(cors({
   origin: [
-    'http://localhost:5173',            // for local dev
-    'https://ai-trader-uvj9.vercel.app' // for deployed frontend
+    'http://localhost:5173',
+    'https://ai-trader-uvj9.vercel.app'
   ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
+  credentials: true
 }));
+
 
 // ✅ Connect to MongoDB Atlas
 connectDB().catch(err => {
