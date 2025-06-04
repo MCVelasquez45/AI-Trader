@@ -1,10 +1,12 @@
 import axios from 'axios';
 
-// ✅ Use Vite-compatible env variable
+// ✅ Dynamically use the API base URL from Vite environment or fallback to localhost
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:4545/api';
-console.log("✅ API ENV:", import.meta.env.VITE_API_URL);
 
-console.log('API URL:', API);
+console.log("✅ API ENV:", import.meta.env.VITE_API_URL);
+console.log('📡 Final API URL:', API);
+
+// 🔁 POST /analyze-trade — Send trade payload to AI backend
 export const analyzeTrade = async (payload: any) => {
   try {
     const response = await axios.post(`${API}/analyze-trade`, payload);
@@ -15,6 +17,7 @@ export const analyzeTrade = async (payload: any) => {
   }
 };
 
+// 📥 GET /trades — Fetch all saved trade recommendations
 export const getAllTrades = async () => {
   try {
     const response = await axios.get(`${API}/trades`);
