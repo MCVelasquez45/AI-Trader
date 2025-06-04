@@ -10,13 +10,9 @@ import './jobs/scanTickers.js';
 dotenv.config();
 
 const app = express();
-
-// ✅ Enable JSON parsing for incoming requests
 app.use(express.json());
 
-
-
-// ✅ Allow requests from both localhost (dev) and Vercel (prod)
+// ✅ Allow requests from localhost (dev) and Vercel frontend (prod)
 app.use(cors({
   origin: [
     'http://localhost:5173',
@@ -27,21 +23,18 @@ app.use(cors({
   credentials: true
 }));
 
-
-// ✅ Connect to MongoDB Atlas
+// ✅ Connect to MongoDB
 connectDB().catch(err => {
-  console.error('❌ FATAL: MongoDB connection failed:', err);
+  console.error('❌ MongoDB connection failed:', err);
   process.exit(1);
 });
 
-// ✅ Get Polygon.io API key from environment
+// ✅ Set up Polygon client
 const POLYGON_API_KEY = process.env.POLYGON_API_KEY;
 if (!POLYGON_API_KEY) {
-  console.error('❌ FATAL: POLYGON_API_KEY missing from environment');
+  console.error('❌ FATAL: POLYGON_API_KEY missing from .env');
   process.exit(1);
 }
-
-// ✅ Set Polygon client on app instance
 const polygon = restClient(POLYGON_API_KEY);
 app.set('polygon', polygon);
 
@@ -49,7 +42,7 @@ app.set('polygon', polygon);
 app.use('/api', tradeRoutes);
 app.use('/api', scrapeRoute);
 
-// ✅ Global error handler for all unhandled errors
+// ✅ Global error handler
 app.use((err, req, res, next) => {
   console.error('🔥 Error:', err.stack);
   res.status(500).json({
@@ -58,7 +51,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ✅ Start the server
+// ✅ Start server
 const PORT = process.env.PORT || 4545;
 app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);
