@@ -14,14 +14,15 @@ const app = express();
 // ✅ Enable JSON parsing for incoming requests
 app.use(express.json());
 
-// ✅ CORS configuration — allow frontend domains to access backend
+// ✨ FULL fix for CORS issues
 app.use(cors({
   origin: [
-    'http://localhost:5173',                 // Dev environment
-    'http://localhost:3000',                 // Alternative local dev
-    'https://ai-trader-uvj9.vercel.app'      // ✅ Vercel production frontend
+    'http://localhost:5173',            // for local dev
+    'https://ai-trader-uvj9.vercel.app' // for deployed frontend
   ],
-  credentials: true
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
 }));
 
 // ✅ Connect to MongoDB Atlas
