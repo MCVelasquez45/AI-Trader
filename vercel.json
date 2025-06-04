@@ -1,0 +1,11 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rootDirectory": "client",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://ai-trader-backend-xxxxx.onrender.com/api/$1"
+    }
+  ]
+}
