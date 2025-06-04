@@ -1,7 +1,3 @@
-// =============================
-// ✅ server.js — Main Entry Point
-// =============================
-
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -9,66 +5,47 @@ import { restClient } from '@polygon.io/client-js';
 import { connectDB } from './config/db.js';
 import tradeRoutes from './routes/tradeRoutes.js';
 import scrapeRoute from './routes/scraperRoutes.js';
-import './jobs/scanTickers.js'; // ⏱ Optional: Cron/interval job
+import './jobs/scanTickers.js';
 
-// =============================
-// 🔐 Load Environment Variables
-// =============================
 dotenv.config();
 
-// =============================
-// 🚀 Create Express App
-// =============================
 const app = express();
 
-// =============================
-// 🛡️ Middleware — Body Parser
-// =============================
-// Parses incoming JSON requests
+// ✅ Enable JSON parsing for incoming requests
 app.use(express.json());
 
-// =============================
-// 🌐 Middleware — CORS Setup
-// =============================
-// Allows frontend to communicate with backend
+// ✅ CORS configuration — allow frontend domains to access backend
 app.use(cors({
   origin: [
-    'http://localhost:5173',                // 🔁 Local Vite frontend
-    'https://ai-trader-frontend.vercel.app' // 🌍 Vercel deployed frontend
+    'http://localhost:5173',                 // Dev environment
+    'http://localhost:3000',                 // Alternative local dev
+    'https://ai-trader-uvj9.vercel.app'      // ✅ Vercel production frontend
   ],
   credentials: true
 }));
 
-// =============================
-// 🌍 Connect to MongoDB Atlas
-// =============================
+// ✅ Connect to MongoDB Atlas
 connectDB().catch(err => {
   console.error('❌ FATAL: MongoDB connection failed:', err);
-  process.exit(1); // Exit app if DB fails
+  process.exit(1);
 });
 
-// =============================
-// 🔑 Polygon API Setup
-// =============================
+// ✅ Get Polygon.io API key from environment
 const POLYGON_API_KEY = process.env.POLYGON_API_KEY;
 if (!POLYGON_API_KEY) {
   console.error('❌ FATAL: POLYGON_API_KEY missing from environment');
   process.exit(1);
 }
 
-// Attach Polygon client to app for shared access in routes
+// ✅ Set Polygon client on app instance
 const polygon = restClient(POLYGON_API_KEY);
-app.set('polygon', polygon); // ⛓ Makes Polygon client accessible via req.app.get('polygon')
+app.set('polygon', polygon);
 
-// =============================
-// 📦 API Routes
-// =============================
-app.use('/api', tradeRoutes);   // 🎯 Trade recommendations + results
-app.use('/api', scrapeRoute);   // 🕸️ CapitolTrades scraping (e.g. /scrape/:ticker)
+// ✅ Register API routes
+app.use('/api', tradeRoutes);
+app.use('/api', scrapeRoute);
 
-// =============================
-// ❌ Global Error Handling
-// =============================
+// ✅ Global error handler for all unhandled errors
 app.use((err, req, res, next) => {
   console.error('🔥 Error:', err.stack);
   res.status(500).json({
@@ -77,9 +54,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// =============================
-// 🚦 Start Server
-// =============================
+// ✅ Start the server
 const PORT = process.env.PORT || 4545;
 app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);
