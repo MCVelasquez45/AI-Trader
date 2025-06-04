@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "nodemon --experimental-modules server.js"
+    "start": "nodemon --experimental-modules server.js",
+        "mongo": "mongosh \"mongodb+srv://cluster0.jkftqzy.mongodb.net/\" --apiVersion 1 --username aiTraderUser"
   },
   "dependencies": {
     "@polygon.io/client-js": "^7.4.0",
