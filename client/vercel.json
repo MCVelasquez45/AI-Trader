@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://ai-trader-backend-xxxxx.onrender.com/api/$1"
+      "destination": "https://ai-trader-backend-ar5g.onrender.com/api/$1"
     }
   ]
 }

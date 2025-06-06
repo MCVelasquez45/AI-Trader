@@ -12,10 +12,19 @@ dotenv.config();
 
 const app = express();
 
-// ✅ CORS Setup (must come before any routes)
+// 🔍 Debug app.use() to find malformed route paths
+const originalUse = app.use.bind(app);
+app.use = function (path, ...rest) {
+  console.log('📍 Registering route:', path);
+  return originalUse(path, ...rest);
+};
+
+// ✅ CORS Setup
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://ai-trader-uvj9.vercel.app'
+  'https://ai-trader-uvj9.vercel.app',
+  'https://ai-trader-uvj9-qurp9efkm-mcvelasquez45s-projects.vercel.app',
+  'https://ai-trader-uvj9.vercel.app/' // Optional duplicate
 ];
 
 app.use(cors({
@@ -23,7 +32,8 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('❌ CORS not allowed from origin: ' + origin));
+      console.warn('❌ Blocked by CORS:', origin);
+      callback(new Error('CORS not allowed from this origin.'));
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -31,21 +41,24 @@ app.use(cors({
   credentials: true
 }));
 
-// ✅ Middleware
+// ✅ Preflight Support
+app.use(cors());
+
+// ✅ JSON Parser
 app.use(express.json());
 
-// ✅ Root Route - for health checks
+// ✅ Root Health Check
 app.get('/', (req, res) => {
   res.send('🚀 AI-Trader API is running');
 });
 
-// ✅ Connect to MongoDB
+// ✅ MongoDB Connection
 await connectDB().catch(err => {
   console.error('❌ MongoDB connection failed:', err.message);
   process.exit(1);
 });
 
-// ✅ Polygon.io client setup
+// ✅ Polygon.io Client Setup
 const POLYGON_API_KEY = process.env.POLYGON_API_KEY;
 if (!POLYGON_API_KEY) {
   console.error('❌ Missing POLYGON_API_KEY in environment.');
@@ -54,11 +67,11 @@ if (!POLYGON_API_KEY) {
 const polygon = restClient(POLYGON_API_KEY);
 app.set('polygon', polygon);
 
-// ✅ Routes
+// ✅ API Routes
 app.use('/api', tradeRoutes);
 app.use('/api', scrapeRoutes);
 
-// ✅ Global Error Handler
+// ✅ Error Handling
 app.use((err, req, res, next) => {
   console.error('🔥 Global Error:', err.stack || err.message);
   res.status(500).json({
