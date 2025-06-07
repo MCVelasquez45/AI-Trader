@@ -10,7 +10,7 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [activeTicker, setActiveTicker] = useState<string | null>(null);
   const [unaffordableTickers, setUnaffordableTickers] = useState<string[]>([]);
-  const [showHistory, setShowHistory] = useState(false); // 👈 New toggle state
+  const [showHistory, setShowHistory] = useState(false);
 
   const handleAnalyze = async (tickers: string[], capital: number, riskTolerance: string) => {
     setLoading(true);
@@ -22,6 +22,13 @@ const Dashboard: React.FC = () => {
         capital,
         riskTolerance
       });
+
+      if (!result || result.error) {
+        alert(`❌ Backend error: ${result?.error || 'Unknown failure'}`);
+        console.error('❌ analyzeTrade error:', result);
+        setLoading(false);
+        return;
+      }
 
       const unaffordable = result.errors || [];
       setUnaffordableTickers(unaffordable.map((e: any) => `- ${e.ticker || 'Unknown'}: ${e.error}`));
@@ -42,6 +49,8 @@ const Dashboard: React.FC = () => {
       setActiveTicker(result.recommendations[0].tickers[0]);
 
     } catch (err: any) {
+      const msg = err.response?.data?.error || err.message || 'Unknown error';
+      alert(`❌ Failed to analyze trade: ${msg}`);
       console.error('❌ Error analyzing:', err.response?.data || err.message || err);
     } finally {
       setLoading(false);
@@ -51,7 +60,7 @@ const Dashboard: React.FC = () => {
   return (
     <>
       <TradeForm onAnalyze={handleAnalyze} />
-      
+
       <div className="d-flex justify-content-end px-4 mb-3">
         <button className="btn btn-outline-secondary" onClick={() => setShowHistory(!showHistory)}>
           {showHistory ? 'Hide GPT History' : 'View GPT History'}

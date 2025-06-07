@@ -105,6 +105,7 @@ export const getSummary = async (req, res) => {
 };
 
 
+// ✅ Validate trade input
 export const validateTradeRequest = (req, res, next) => {
   const { tickers, capital, riskTolerance } = req.body;
 
@@ -123,11 +124,17 @@ export const validateTradeRequest = (req, res, next) => {
   next();
 };
 
-
-
+// ✅ Analyze trade controller
 export const analyzeTrade = async (req, res) => {
   try {
+    console.log("📥 Incoming analyzeTrade payload:", req.body);
+
     const { capital, riskTolerance, watchlist } = req.body;
+
+    if (!capital || !riskTolerance) {
+      return res.status(400).json({ error: 'Missing required fields: capital or riskTolerance' });
+    }
+
     const tickers = Array.isArray(watchlist) && watchlist.length > 0 ? watchlist : ['AAPL'];
     const apiKey = process.env.POLYGON_API_KEY;
 
@@ -138,90 +145,66 @@ export const analyzeTrade = async (req, res) => {
     const recommendations = [];
 
     for (const ticker of tickers) {
-      console.log(`📊 Analyzing ${ticker}...`);
-      const price = await getStockPrice(ticker);
-      if (!price) {
-        console.warn(`⚠️ Skipping ${ticker} — no stock price found.`);
-        continue;
-      }
-
-      console.log(`💵 Current Price for ${ticker}: $${price}`);
-
-      const candles = await getMinuteCandles(ticker);
-      const indicators = await calculateIndicators(candles);
-      const { rsi, vwap, macd } = indicators;
-      console.log(`📈 Indicators for ${ticker} — RSI: ${rsi}, VWAP: ${vwap}, MACD Hist: ${macd?.histogram}`);
-
-      const newsHeadlines = await getNewsSentiment(ticker);
-
-      // 🏛️ Scrape trades via issuerId
-      let congressActivity = 'Not available';
       try {
-        const issuerId = await getIssuerId(ticker);
-        const trades = await scrapeCapitolTrades(issuerId);
-
-        if (trades.length > 0) {
-          console.log(`📣 Raw Trades for Issuer ID ${issuerId}:\n`);
-          trades.forEach((tx, idx) => {
-            console.log(`#${idx + 1}`);
-            console.log(`🧑 ${tx.representative}`);
-            console.log(`📆 ${tx.date}`);
-            console.log(`💼 ${tx.type?.toUpperCase()} for ${tx.amount}`);
-            console.log(`🔗 ${tx.link}`);
-            console.log('---');
-          });
-
-          congressActivity = trades.map(tx => (
-            `${tx.representative} ${tx.type?.toUpperCase()} (${tx.amount}) on ${tx.date}\nLink: ${tx.link}`
-          )).join('\n');
-        } else {
-          console.warn(`⚠️ No trades found for issuer ${issuerId}`);
-          congressActivity = await getCongressTrades(ticker); // fallback
+        console.log(`📊 Analyzing ${ticker}...`);
+        const price = await getStockPrice(ticker);
+        if (!price) {
+          console.warn(`⚠️ Skipping ${ticker} — no stock price found.`);
+          continue;
         }
-      } catch (err) {
-        console.warn(`❌ tickerToIssuerId error for ${ticker}:`, err.message);
-        congressActivity = await getCongressTrades(ticker); // fallback
-      }
 
-      const sentimentPrompt = `
-Summarize the sentiment of the following news headlines for ${ticker}. Just return one sentence like "The overall sentiment is positive", "neutral", or "negative".
+        const candles = await getMinuteCandles(ticker);
+        const indicators = await calculateIndicators(candles);
+        const { rsi, vwap, macd } = indicators;
 
-Headlines:
-${newsHeadlines}`.trim();
+        const newsHeadlines = await getNewsSentiment(ticker);
 
-      let sentimentSummary = 'Not available';
-      try {
-        const sentimentResponse = await runOptionAssistant(sentimentPrompt);
-        sentimentSummary = sentimentResponse.trim().replace(/^"|"$/g, '');
-        console.log(`🧠 News Sentiment for ${ticker}: ${sentimentSummary}`);
-      } catch (err) {
-        console.warn(`⚠️ Failed to summarize sentiment for ${ticker}:`, err.message);
-      }
+        let congressActivity = 'Not available';
+        try {
+          const issuerId = await getIssuerId(ticker);
+          const trades = await scrapeCapitolTrades(issuerId);
+          if (trades.length > 0) {
+            congressActivity = trades.map(tx =>
+              `${tx.representative} ${tx.type?.toUpperCase()} (${tx.amount}) on ${tx.date}\nLink: ${tx.link}`
+            ).join('\n');
+          } else {
+            congressActivity = await getCongressTrades(ticker);
+          }
+        } catch (err) {
+          console.warn(`❌ Error with issuer ID or scraping for ${ticker}:`, err.message);
+          congressActivity = await getCongressTrades(ticker);
+        }
 
-      const { contracts } = await getAffordableOptionContracts({
-        ticker,
-        capital,
-        riskTolerance,
-        apiKey
-      });
+        let sentimentSummary = 'Not available';
+        try {
+          const sentimentResponse = await runOptionAssistant(`
+Summarize the sentiment of the following news headlines for ${ticker}:
+${newsHeadlines}`);
+          sentimentSummary = sentimentResponse.trim().replace(/^"|"$/g, '');
+        } catch (err) {
+          console.warn(`⚠️ Failed to summarize sentiment for ${ticker}:`, err.message);
+        }
 
-      if (!contracts?.length) {
-        console.warn(`⚠️ No affordable options found for ${ticker}`);
-        continue;
-      }
+        const { contracts } = await getAffordableOptionContracts({
+          ticker,
+          capital,
+          riskTolerance,
+          apiKey
+        });
 
-      const best = contracts[0];
-      const snapshot = await getOptionSnapshot(ticker, best.ticker);
-      const snapshotText = snapshot
-        ? `\nImplied Volatility: ${snapshot.implied_volatility ?? 'N/A'}\nDelta: ${snapshot.delta ?? 'N/A'}\nOpen Interest: ${snapshot.open_interest ?? 'N/A'}`
-        : '';
+        if (!contracts?.length) {
+          console.warn(`⚠️ No affordable options found for ${ticker}`);
+          continue;
+        }
 
-      const prompt = `
-You are a professional trading assistant. Consider technical indicators, news sentiment, and recent congressional trading activity when making a recommendation.
+        const best = contracts[0];
+        const snapshot = await getOptionSnapshot(ticker, best.ticker);
+        const snapshotText = snapshot
+          ? `\nImplied Volatility: ${snapshot.implied_volatility ?? 'N/A'}\nDelta: ${snapshot.delta ?? 'N/A'}\nOpen Interest: ${snapshot.open_interest ?? 'N/A'}`
+          : '';
 
-If recent congressional trades align with technical indicators, you may increase your confidence in the recommendation.
-
-Analyze the following stock and recommend if a trader with a ${riskTolerance} risk tolerance should buy this CALL option. Estimate a reasonable target price and stop loss for the option trade based on the technical indicators and volatility.
+        const prompt = `
+You are a professional trading assistant. Analyze the following:
 
 Ticker: ${ticker}
 Current Price: $${price.toFixed(2)}
@@ -232,75 +215,76 @@ Technical Indicators:
   - RSI: ${rsi}
   - VWAP: ${vwap}
   - MACD: ${macd?.macd}
-  - MACD Signal: ${macd?.signal}
   - MACD Histogram: ${macd?.histogram}${snapshotText}
 
-Recent News Headlines:
+News:
 ${newsHeadlines}
 
-Congressional Trading Activity:
-${congressActivity}`.trim();
+Congressional Trades:
+${congressActivity}
+`.trim();
 
-      console.log(`📤 GPT Prompt for ${ticker}:\n${prompt}`);
+        const gptResponse = await runOptionAssistant(prompt);
 
-      const gptResponse = await runOptionAssistant(prompt);
-      console.log(`🤖 Raw GPT Response for ${ticker}:\n${gptResponse}`);
+        let recommendation = 'hold';
+        let confidence = 'low';
+        let explanation = gptResponse;
+        let targetPrice = Number((price * 1.1).toFixed(2));
+        let stopLoss = Number((price * 0.9).toFixed(2));
 
-      let recommendation = null;
-      let confidence = null;
-      let explanation = gptResponse;
-      let targetPrice = null;
-      let stopLoss = null;
-
-      try {
-        let raw = gptResponse.trim();
-        if (raw.startsWith("```json")) {
-          raw = raw.replace(/^```json\n/, '').replace(/```$/, '').trim();
+        try {
+          let raw = gptResponse.trim();
+          if (raw.startsWith("```json")) {
+            raw = raw.replace(/^```json\n/, '').replace(/```$/, '').trim();
+          }
+          const parsed = JSON.parse(raw);
+          recommendation = parsed.recommendation?.toLowerCase() || recommendation;
+          confidence = parsed.confidence || confidence;
+          explanation = parsed.explanation || gptResponse;
+          targetPrice = parsed.targetPrice || targetPrice;
+          stopLoss = parsed.stopLoss || stopLoss;
+        } catch (err) {
+          console.warn(`⚠️ GPT output was not valid JSON for ${ticker}:`, err.message);
+          continue;
         }
-        const parsed = JSON.parse(raw);
-        recommendation = parsed.recommendation?.toLowerCase() ?? 'hold';
-        confidence = parsed.confidence ?? 'low';
-        explanation = parsed.explanation ?? gptResponse;
-        targetPrice = parsed.targetPrice ?? Number((price * 1.1).toFixed(2));
-        stopLoss = parsed.stopLoss ?? Number((price * 0.9).toFixed(2));
+
+        const trade = await TradeRecommendation.create({
+          tickers: [ticker],
+          capital,
+          riskTolerance,
+          entryPrice: price,
+          expiryDate: best.expiration_date,
+          option: best,
+          gptPrompt: prompt,
+          gptResponse: explanation,
+          recommendationDirection: recommendation,
+          confidence,
+          indicators: { rsi, vwap, macd },
+          congressTrades: congressActivity,
+          sentimentSummary,
+          targetPrice,
+          stopLoss
+        });
+
+        recommendations.push(trade);
       } catch (err) {
-        console.warn(`⚠️ GPT did not return valid JSON for ${ticker}, skipping.`);
-        continue;
+        console.error(`❌ Internal error while analyzing ${ticker}:`, err.message);
       }
-
-      const trade = await TradeRecommendation.create({
-        tickers: [ticker],
-        capital,
-        riskTolerance,
-        entryPrice: price,
-        expiryDate: best.expiration_date,
-        option: best,
-        gptPrompt: prompt,
-        gptResponse: explanation,
-        recommendationDirection: recommendation,
-        confidence,
-        indicators: { rsi, vwap, macd },
-        congressTrades: congressActivity,
-        sentimentSummary,
-        targetPrice,
-        stopLoss
-      });
-
-      console.log(`✅ Saved trade recommendation for ${ticker}`);
-      recommendations.push(trade);
     }
 
     if (recommendations.length === 0) {
       return res.status(400).json({ error: 'No valid trades were generated' });
     }
 
-    res.json({ message: 'Valid trade recommendations created', recommendations });
+    res.json({ message: 'Trade recommendations created', recommendations });
+
   } catch (err) {
-    console.error('❌ Error in analyzeTrade:', err);
-    res.status(500).json({ error: 'Trade analysis failed' });
+    console.error('❌ analyzeTrade crashed:', err);
+    res.status(500).json({ error: 'Trade analysis failed', details: err.message });
   }
 };
-// 📋 Get all trade recommendations
+
+// ✅ Get all trades
 export const getAllTrades = async (req, res) => {
   try {
     const trades = await TradeRecommendation.find().sort({ createdAt: -1 });
@@ -310,7 +294,7 @@ export const getAllTrades = async (req, res) => {
   }
 };
 
-// ✅ Update a trade with its final outcome
+// ✅ Update trade outcome
 export const updateTradeOutcome = async (req, res) => {
   const { id } = req.params;
   const { outcome, userNotes } = req.body;
@@ -333,5 +317,4 @@ export const updateTradeOutcome = async (req, res) => {
     res.status(500).json({ error: 'Failed to update trade outcome' });
   }
 };
-// ✅ Final tradeController.js
 
