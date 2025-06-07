@@ -1,5 +1,6 @@
 // /server/scrapers/scrapeCapitolTrades.js
 import puppeteer from 'puppeteer';
+import { executablePath } from 'puppeteer'; // ✅ Added to resolve headless Chromium on Render
 
 /**
  * Scrapes congressional trade data from CapitolTrades for a given issuerId.
@@ -7,30 +8,29 @@ import puppeteer from 'puppeteer';
  * @returns {Promise<Array>} - Returns an array of trade objects: { date, representative, type, amount, link }
  */
 const scrapeCapitolTrades = async (issuerId) => {
-  // Launch a headless Chrome instance
-  const browser = await puppeteer.launch({ headless: 'new' });
+  // ✅ Launch a headless Chrome instance compatible with Render's environment
+  const browser = await puppeteer.launch({
+    headless: true,
+    executablePath: executablePath(), // 👈 use puppeteer-installed Chromium
+    args: ['--no-sandbox', '--disable-setuid-sandbox'] // 👈 required in most serverless Linux containers
+  });
 
-  // Open a new browser page/tab
   const page = await browser.newPage();
 
-  // Navigate to the issuer's CapitolTrades profile
   const url = `https://www.capitoltrades.com/issuers/${issuerId}`;
-  await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 }); // wait for network activity to settle
+  await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
 
-  // Scrape table rows from the trades table using in-page DOM access
   const trades = await page.evaluate(() => {
-    // Select all rows in the trade table
     const rows = Array.from(document.querySelectorAll('table tbody tr'));
 
-    // Extract structured trade info from each row
     return rows.map(row => {
       const columns = row.querySelectorAll('td');
 
-      const representative = columns[0]?.innerText.trim() || '';     // Congress member's name
-      const date = columns[2]?.innerText.trim() || '';               // Date traded
-      const type = columns[4]?.innerText.trim().toLowerCase() || ''; // Buy or sell
-      const amount = columns[5]?.innerText.trim() || '';             // Amount traded
-      const link = row.querySelector('a')?.href || '';               // Link to detailed trade/filer page
+      const representative = columns[0]?.innerText.trim() || '';
+      const date = columns[2]?.innerText.trim() || '';
+      const type = columns[4]?.innerText.trim().toLowerCase() || '';
+      const amount = columns[5]?.innerText.trim() || '';
+      const link = row.querySelector('a')?.href || '';
 
       return {
         date,
@@ -42,9 +42,7 @@ const scrapeCapitolTrades = async (issuerId) => {
     });
   });
 
-  // Close the browser session to free resources
   await browser.close();
-
   console.log(`📊 Scraped ${trades.length} trades from issuer ${issuerId}`);
   return trades;
 };
