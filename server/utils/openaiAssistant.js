@@ -1,58 +1,116 @@
-import dotenv from 'dotenv';
-dotenv.config();
+// ✅ File: utils/openaiAssistant.js
 
 import OpenAI from 'openai';
-import getCongressTrades from '../utils/getCongressTrades.js';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+// 🔐 Initialize OpenAI with API key from environment variables
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 /**
- * Runs a GPT assistant analysis with extended context
- * including sentiment, indicators, congress trades,
- * and affordable options status.
+ * 📈 Generates a GPT trade recommendation based on enriched financial data.
+ *
+ * @param {Object} data - Contains:
+ *   - ticker (string): Stock ticker symbol
+ *   - stockPrice (number): Current price of the stock
+ *   - indicators (object): Technical indicators (RSI, MACD, VWAP)
+ *   - sentiment (string): News sentiment summary
+ *   - congress (string): Congressional trades summary (formatted string)
+ *   - contract (object): Closest ITM options contract
+ *
+ * @returns {Promise<string|object>} - GPT trade recommendation or error object
  */
-export async function runOptionAssistant(prompt, context) {
+export const getGptRecommendation = async ({
+  ticker,
+  stockPrice,
+  indicators,
+  sentiment,
+  congress,
+  contract
+}) => {
   try {
-    const assistantId = process.env.OPTION_ASSISTANT_ID;
-    const thread = await openai.beta.threads.create();
+    // 🧠 Destructure technical indicators
+    const { rsi, macd, vwap } = indicators;
 
-    // 📥 Inject CapitolTrades data if ticker provided
-    if (context?.ticker) {
-      const tradesSummary = await getCongressTrades(context.ticker);
-      prompt += `\n\n📊 Congressional Trades for ${context.ticker}:\n${tradesSummary}`;
-      console.log(`📥 Injected CapitolTrades data for ${context.ticker} into GPT prompt`);
-    }
+    // 🔍 Log the entire enriched data input before building the prompt
+    console.log('\n🧠 [getGptRecommendation] Enriched Data Received:');
+    console.dir({
+      ticker,
+      stockPrice,
+      indicators,
+      sentiment,
+      congress,
+      contract
+    }, { depth: null });
 
-    // 🔍 If no affordable options, provide instruction for GPT to still give guidance
-    if (context?.noAffordableOptions) {
-      prompt += `\n\n⚠️ No affordable option contracts were found within the user's capital of $${context.capital}.`;
-      prompt += ` Still, analyze the overall market setup, indicators (RSI, MACD, VWAP), news sentiment, and congress trades to determine if a CALL, PUT, or AVOID is best based on market trends.`;
-    }
+    // 📝 Build professional-grade GPT prompt
+    const prompt = `
+You are a hedge fund-level options strategist and AI trader.
 
-    await openai.beta.threads.messages.create(thread.id, {
-      role: 'user',
-      content: prompt
-    });
+Your objective is to evaluate whether a CALL or PUT contract is the superior setup for the stock below, considering technicals, sentiment, volatility, and congressional positioning.
 
-    const run = await openai.beta.threads.runs.create(thread.id, {
-      assistant_id: assistantId
-    });
+📈 Ticker: ${ticker}
+💵 Stock Price: $${stockPrice}
 
-    let status = run.status;
-    while (status !== 'completed') {
-      await new Promise(r => setTimeout(r, 1500));
-      const updated = await openai.beta.threads.runs.retrieve(thread.id, run.id);
-      status = updated.status;
-    }
+📊 Technical Indicators:
+• RSI: ${rsi}
+• MACD: ${macd?.macd} (MACD line)
+• Signal Line: ${macd?.signal}
+• Histogram: ${macd?.histogram}
+• VWAP: ${vwap}
 
-    const messages = await openai.beta.threads.messages.list(thread.id);
-    const assistantMessage = messages.data.find(msg => msg.role === 'assistant');
+📰 News Sentiment:
+${sentiment || "No recent sentiment data available."}
 
-    return assistantMessage?.content?.[0]?.text?.value ?? 'No GPT response generated.';
-  } catch (err) {
-    console.error('❌ GPT Assistant error:', err.message);
-    return 'GPT Assistant failed to respond.';
-  }
+🏛️ Congressional Trades:
+${congress || "No recent trades reported by elected officials."}
+
+📉 Closest In-the-Money Option Contract:
+• Ticker: ${contract?.ticker}
+• Strike: $${contract?.strike_price}
+• Ask Price: $${contract?.ask}
+• Expiration: ${contract?.expiration_date}
+• Delta: ${contract?.delta}
+• IV: ${contract?.implied_volatility}
+• Open Interest: ${contract?.open_interest}
+
+🎯 Your recommendation must include:
+1. CALL or PUT
+2. Confidence level (High | Medium | Low)
+3. Entry price, target price, and stop loss
+4. Reasoning based on ALL data above
+
+💬 Format your reply EXACTLY like this:
+{
+  "tradeType": "CALL" or "PUT",
+  "confidence": "High" | "Medium" | "Low",
+  "analysis": "Explain using RSI, MACD, VWAP, IV, sentiment, and political trades.",
+  "entryPrice": 00.00,
+  "targetPrice": 00.00,
+  "stopLoss": 00.00
 }
+`;
+
+    // 🧾 Log the entire prompt for full traceability
+    console.log('\n📤 [Prompt to GPT-4]:\n' + prompt);
+
+    // 🚀 Send to OpenAI's GPT-4
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7
+    });
+
+    // 🧠 Extract the content from GPT-4 response
+    const gptResponse = completion.choices[0]?.message?.content?.trim();
+
+    // ✅ Log the final GPT recommendation
+    console.log('\n📥 [GPT Output] Recommendation Response Received ✅');
+    console.log(gptResponse);
+
+    return gptResponse;
+
+  } catch (error) {
+    // ❌ Catch and log any error from OpenAI API call
+    console.error('\n❌ [GPT ERROR]:', error.message || error);
+    return { error: 'GPT recommendation failed.' };
+  }
+};

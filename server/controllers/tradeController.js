@@ -1,20 +1,17 @@
 // ✅ controllers/tradeController.js
 
-import getStockPrice from '../utils/getStockPrice.js';
-import getMinuteCandles from '../utils/getMinuteCandles.js';
-import calculateIndicators from '../utils/calculateIndicators.js';
-import getAffordableOptionContracts from '../utils/getAffordableOptionContracts.js';
-import { getOptionSnapshot } from '../utils/getOptionSnapshot.js';
-import { runOptionAssistant } from '../utils/openaiAssistant.js';
-import { TradeRecommendation } from '../models/TradeRecommendation.js';
-import getNewsSentiment from '../utils/getNewsSentiment.js';
-import getCongressTrades from '../utils/getCongressTrades.js';
-import getIssuerId from '../scrapers/tickerToIssuerId.js';
-import scrapeCapitolTrades from '../scrapers/scrapeCapitolTrades.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
-// 📈 Get aggregate data for a single ticker (daily candles)
+// Utility imports
+import getStockPrice from '../utils/getStockPrice.js';
+import { getGptRecommendation } from '../utils/openaiAssistant.js';
+import { getAffordableOptionContracts } from '../utils/getAffordableOptionContracts.js';
+import { enrichTickerData } from '../utils/enrichTickerData.js';
+import TradeRecommendation from '../models/TradeRecommendation.js';
+
+
+// 🔍 Fetch aggregate (candlestick) data for a single ticker over the past 30 days
 export const getAggregate = async (req, res) => {
   const { ticker } = req.params;
   const polygon = req.app.get('polygon');
@@ -22,7 +19,7 @@ export const getAggregate = async (req, res) => {
   try {
     const endDate = new Date();
     const startDate = new Date(endDate);
-    startDate.setDate(endDate.getDate() - 30);
+    startDate.setDate(endDate.getDate() - 30); // Get 30-day window
 
     const data = await polygon.stocks.aggregates(
       ticker,
@@ -31,13 +28,15 @@ export const getAggregate = async (req, res) => {
       startDate.toISOString().split('T')[0],
       endDate.toISOString().split('T')[0]
     );
+
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: `Failed to fetch data for ${ticker}` });
   }
 };
 
-// 📊 Get aggregate data for multiple tickers at once
+
+// 🔍 Fetch aggregates for multiple tickers (useful for bulk analysis)
 export const getMultiAggregates = async (req, res) => {
   const { tickers } = req.body;
   const polygon = req.app.get('polygon');
@@ -54,12 +53,15 @@ export const getMultiAggregates = async (req, res) => {
           .catch(error => ({ ticker, error: error.message }))
       )
     );
+
     res.json(results);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch multiple aggregates' });
   }
 };
 
+
+// 🧾 Get summary of last day’s data + latest trade recommendation for a given ticker
 export const getSummary = async (req, res) => {
   const { ticker } = req.params;
   const polygon = req.app.get('polygon');
@@ -69,7 +71,7 @@ export const getSummary = async (req, res) => {
   try {
     const endDate = new Date();
     const startDate = new Date(endDate);
-    startDate.setDate(endDate.getDate() - 2);
+    startDate.setDate(endDate.getDate() - 2); // last 2 days
 
     const agg = await polygon.stocks.aggregates(
       ticker,
@@ -78,10 +80,6 @@ export const getSummary = async (req, res) => {
       startDate.toISOString().split('T')[0],
       endDate.toISOString().split('T')[0]
     );
-
-    if (!agg.results || agg.results.length === 0) {
-      console.warn(`⚠️ No aggregate data returned for ${ticker}`);
-    }
 
     const lastDay = agg.results?.at(-1) || null;
     const trade = await TradeRecommendation.findOne({ tickers: ticker }).sort({ createdAt: -1 });
@@ -105,12 +103,22 @@ export const getSummary = async (req, res) => {
 };
 
 
-// ✅ Validate trade input
 export const validateTradeRequest = (req, res, next) => {
-  const { tickers, capital, riskTolerance } = req.body;
+  let { tickers, ticker, watchlist, capital, riskTolerance } = req.body;
+
+  // Normalize to tickers[]
+  if (!tickers) {
+    if (Array.isArray(watchlist)) {
+      tickers = watchlist;
+      req.body.tickers = tickers;
+    } else if (ticker) {
+      tickers = [ticker];
+      req.body.tickers = tickers;
+    }
+  }
 
   if (!Array.isArray(tickers)) {
-    return res.status(400).json({ error: 'Tickers must be an array' });
+    return res.status(400).json({ error: 'Tickers must be an array or ticker must be provided' });
   }
 
   if (typeof capital !== 'number' || capital <= 0) {
@@ -118,173 +126,195 @@ export const validateTradeRequest = (req, res, next) => {
   }
 
   if (!['low', 'medium', 'high'].includes(riskTolerance)) {
-    return res.status(400).json({ error: 'Invalid risk tolerance value' });
+    return res.status(400).json({ error: 'Invalid risk tolerance value (must be low, medium, or high)' });
   }
 
   next();
 };
 
-// ✅ Analyze trade controller
-export const analyzeTrade = async (req, res) => {
+// 🧠 Validates a single ticker and returns affordable options based on user capital
+export const validateTicker = async (req, res) => {
+  const { ticker, capital = 1000, riskTolerance = 'medium' } = req.body;
+  const apiKey = process.env.POLYGON_API_KEY;
+
+  console.log('\n🧠 Validating Ticker & Checking Affordability...');
+  console.log(`  📈 Ticker: ${ticker}`);
+  console.log(`  💵 Capital: $${capital}`);
+  console.log(`  ⚖️ Risk Tolerance: ${riskTolerance}`);
+  console.log(`  🔑 API Key Present: ${!!apiKey}`);
+
+  if (!ticker) {
+    return res.status(400).json({ valid: false, error: 'Ticker symbol is required.' });
+  }
+
   try {
-    console.log("📥 Incoming analyzeTrade payload:", req.body);
-
-    const { capital, riskTolerance, watchlist } = req.body;
-
-    if (!capital || !riskTolerance) {
-      return res.status(400).json({ error: 'Missing required fields: capital or riskTolerance' });
+    // Step 1: Validate ticker
+    const stockPrice = await getStockPrice(ticker);
+    if (!stockPrice) {
+      console.warn(`❌ Invalid ticker "${ticker}" — No price data`);
+      return res.status(404).json({
+        valid: false,
+        message: `Ticker "${ticker}" not found.`,
+        stockPrice: null,
+        contracts: [],
+        closestITM: null
+      });
     }
 
-    const tickers = Array.isArray(watchlist) && watchlist.length > 0 ? watchlist : ['AAPL'];
-    const apiKey = process.env.POLYGON_API_KEY;
+    // Step 2: Fetch CALL contracts user can afford
+    const { contracts, cheapestUnaffordable, closestITM } = await getAffordableOptionContracts({
+      ticker,
+      capital,
+      riskTolerance,
+      apiKey,
+      contractType: 'call'
+    });
 
-    if (!apiKey) {
-      return res.status(500).json({ error: 'Missing Polygon API key' });
+    // 💡 Log the closest ITM contract
+    if (closestITM) {
+      console.log(`🎯 Closest ITM Contract Found: ${closestITM.ticker} | Strike: ${closestITM.strike_price}`);
+    } else {
+      console.log(`⚠️ No closest ITM found.`);
     }
 
-    const recommendations = [];
-
-    for (const ticker of tickers) {
-      try {
-        console.log(`📊 Analyzing ${ticker}...`);
-        const price = await getStockPrice(ticker);
-        if (!price) {
-          console.warn(`⚠️ Skipping ${ticker} — no stock price found.`);
-          continue;
-        }
-
-        const candles = await getMinuteCandles(ticker);
-        const indicators = await calculateIndicators(candles);
-        const { rsi, vwap, macd } = indicators;
-
-        const newsHeadlines = await getNewsSentiment(ticker);
-
-        let congressActivity = 'Not available';
-        try {
-          const issuerId = await getIssuerId(ticker);
-          const trades = await scrapeCapitolTrades(issuerId);
-          if (trades.length > 0) {
-            congressActivity = trades.map(tx =>
-              `${tx.representative} ${tx.type?.toUpperCase()} (${tx.amount}) on ${tx.date}\nLink: ${tx.link}`
-            ).join('\n');
-          } else {
-            congressActivity = await getCongressTrades(ticker);
-          }
-        } catch (err) {
-          console.warn(`❌ Error with issuer ID or scraping for ${ticker}:`, err.message);
-          congressActivity = await getCongressTrades(ticker);
-        }
-
-        let sentimentSummary = 'Not available';
-        try {
-          const sentimentResponse = await runOptionAssistant(`
-Summarize the sentiment of the following news headlines for ${ticker}:
-${newsHeadlines}`);
-          sentimentSummary = sentimentResponse.trim().replace(/^"|"$/g, '');
-        } catch (err) {
-          console.warn(`⚠️ Failed to summarize sentiment for ${ticker}:`, err.message);
-        }
-
-        const { contracts } = await getAffordableOptionContracts({
-          ticker,
-          capital,
-          riskTolerance,
-          apiKey
-        });
-
-        if (!contracts?.length) {
-          console.warn(`⚠️ No affordable options found for ${ticker}`);
-          continue;
-        }
-
-        const best = contracts[0];
-        const snapshot = await getOptionSnapshot(ticker, best.ticker);
-        const snapshotText = snapshot
-          ? `\nImplied Volatility: ${snapshot.implied_volatility ?? 'N/A'}\nDelta: ${snapshot.delta ?? 'N/A'}\nOpen Interest: ${snapshot.open_interest ?? 'N/A'}`
-          : '';
-
-        const prompt = `
-You are a professional trading assistant. Analyze the following:
-
-Ticker: ${ticker}
-Current Price: $${price.toFixed(2)}
-Strike Price: $${best.strike_price}
-Expiration Date: ${best.expiration_date}
-Capital Available: $${capital}
-Technical Indicators:
-  - RSI: ${rsi}
-  - VWAP: ${vwap}
-  - MACD: ${macd?.macd}
-  - MACD Histogram: ${macd?.histogram}${snapshotText}
-
-News:
-${newsHeadlines}
-
-Congressional Trades:
-${congressActivity}
-`.trim();
-
-        const gptResponse = await runOptionAssistant(prompt);
-
-        let recommendation = 'hold';
-        let confidence = 'low';
-        let explanation = gptResponse;
-        let targetPrice = Number((price * 1.1).toFixed(2));
-        let stopLoss = Number((price * 0.9).toFixed(2));
-
-        try {
-          let raw = gptResponse.trim();
-          if (raw.startsWith("```json")) {
-            raw = raw.replace(/^```json\n/, '').replace(/```$/, '').trim();
-          }
-          const parsed = JSON.parse(raw);
-          recommendation = parsed.recommendation?.toLowerCase() || recommendation;
-          confidence = parsed.confidence || confidence;
-          explanation = parsed.explanation || gptResponse;
-          targetPrice = parsed.targetPrice || targetPrice;
-          stopLoss = parsed.stopLoss || stopLoss;
-        } catch (err) {
-          console.warn(`⚠️ GPT output was not valid JSON for ${ticker}:`, err.message);
-          continue;
-        }
-
-        const trade = await TradeRecommendation.create({
-          tickers: [ticker],
-          capital,
-          riskTolerance,
-          entryPrice: price,
-          expiryDate: best.expiration_date,
-          option: best,
-          gptPrompt: prompt,
-          gptResponse: explanation,
-          recommendationDirection: recommendation,
-          confidence,
-          indicators: { rsi, vwap, macd },
-          congressTrades: congressActivity,
-          sentimentSummary,
-          targetPrice,
-          stopLoss
-        });
-
-        recommendations.push(trade);
-      } catch (err) {
-        console.error(`❌ Internal error while analyzing ${ticker}:`, err.message);
-      }
+    // Edge case: No affordable contracts
+    if (!contracts.length && cheapestUnaffordable) {
+      console.log(`📉 No affordable contracts. Returning closest ITM fallback.`);
+      return res.status(200).json({
+        valid: true,
+        message: `No CALL contracts under $${capital}. Closest ITM contract returned.`,
+        stockPrice,
+        contracts: [],
+        closestITM
+      });
     }
 
-    if (recommendations.length === 0) {
-      return res.status(400).json({ error: 'No valid trades were generated' });
+    // No contracts at all
+    if (!contracts.length && !cheapestUnaffordable) {
+      console.log(`❌ No viable contracts at all for ${ticker}.`);
+      return res.status(200).json({
+        valid: true,
+        message: `No CALL contracts found for "${ticker}".`,
+        stockPrice,
+        contracts: [],
+        closestITM: null
+      });
     }
 
-    res.json({ message: 'Trade recommendations created', recommendations });
+    // ✅ Success: return all affordable CALL contracts
+    console.log(`✅ ${contracts.length} affordable contracts returned.`);
+    return res.status(200).json({
+      valid: true,
+      message: `Found ${contracts.length} affordable CALL contracts.`,
+      stockPrice,
+      contracts,
+      closestITM
+    });
 
   } catch (err) {
-    console.error('❌ analyzeTrade crashed:', err);
-    res.status(500).json({ error: 'Trade analysis failed', details: err.message });
+    console.error('🔥 Error during ticker validation:', err.message);
+    return res.status(500).json({
+      valid: false,
+      error: 'Internal server error during ticker validation.',
+      stockPrice: null,
+      contracts: [],
+      closestITM: null
+    });
   }
 };
 
-// ✅ Get all trades
+
+/* ============================================================================
+ 🧠 ANALYZE TRADE — Main controller for processing trade recommendation
+============================================================================ */
+// ✅ Controller: analyzeTrade — Main endpoint to generate trade recommendations
+
+
+
+export const analyzeTrade = async (req, res) => {
+  try {
+    console.log("🚀 [analyzeTrade] Controller triggered");
+    const { capital, riskTolerance, watchlist } = req.body;
+
+    if (!capital || !riskTolerance || !Array.isArray(watchlist) || watchlist.length === 0) {
+      return res.status(400).json({ error: 'Missing required fields: capital, riskTolerance, or watchlist' });
+    }
+
+    const enrichedTickers = [];
+
+    for (const ticker of watchlist) {
+      console.log(`🔍 Running trade analysis for: ${ticker}`);
+
+      const enrichedData = await enrichTickerData({ ticker, capital, riskTolerance });
+
+      const { closestITM } = enrichedData || {};
+
+      // 🛑 Defensive check for closestITM validity
+      const hasValidContract =
+        closestITM &&
+        typeof closestITM === 'object' &&
+        typeof closestITM.ask === 'number' &&
+        typeof closestITM.strike_price === 'number';
+
+      if (!hasValidContract) {
+        console.warn(`⚠️ Skipping GPT prompt due to invalid or incomplete contract data for ${ticker}`);
+        console.warn(`🧪 closestITM debug:`, closestITM);
+        continue;
+      }
+
+      console.log("✅ GPT prompt ready with contract:", {
+        ticker,
+        ask: closestITM.ask,
+        strike: closestITM.strike_price
+      });
+
+      const gptResponse = await getGptRecommendation(enrichedData);
+
+      if (!gptResponse?.tradeType || !gptResponse?.confidence) {
+        return res.status(500).json({ error: "GPT did not return a valid trade recommendation." });
+      }
+
+    const newRec = new TradeRecommendation({
+  tickers: [ticker],
+  capital: enrichedData.capital || capital, // ✅ Ensure capital is saved properly
+  riskTolerance,
+  recommendationDirection: gptResponse.tradeType,
+  confidence: gptResponse.confidence,
+  analysis: gptResponse.analysis,
+  entryPrice: gptResponse.entryPrice,
+  targetPrice: gptResponse.targetPrice,
+  stopLoss: gptResponse.stopLoss,
+  option: closestITM
+});
+      console.log(`📈 [MongoDB] Creating recommendation for ${ticker} with type ${gptResponse.tradeType}`);
+      await newRec.save();
+      console.log(`💾 [MongoDB] Saved recommendation for ${ticker}`);
+
+      enrichedTickers.push({
+        ticker,
+        recommendation: gptResponse,
+        option: closestITM
+      });
+    }
+
+    if (!enrichedTickers.length) {
+      return res.status(500).json({ error: "No valid recommendations generated." });
+    }
+
+    return res.status(200).json({
+      message: "✅ Trade recommendations created",
+      recommendations: enrichedTickers
+    });
+
+  } catch (err) {
+    console.error("🔥 [analyzeTrade] Server error:", err);
+    return res.status(500).json({ error: "Server error during trade analysis." });
+  }
+};
+
+
+
+// 📚 Fetch all saved trade recommendations
 export const getAllTrades = async (req, res) => {
   try {
     const trades = await TradeRecommendation.find().sort({ createdAt: -1 });
@@ -294,7 +324,8 @@ export const getAllTrades = async (req, res) => {
   }
 };
 
-// ✅ Update trade outcome
+
+// ✏️ Manually update trade outcome (win/loss/pending)
 export const updateTradeOutcome = async (req, res) => {
   const { id } = req.params;
   const { outcome, userNotes } = req.body;
@@ -317,4 +348,3 @@ export const updateTradeOutcome = async (req, res) => {
     res.status(500).json({ error: 'Failed to update trade outcome' });
   }
 };
-
