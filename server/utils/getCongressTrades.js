@@ -4,58 +4,50 @@ import scrapeCapitolTrades from '../scrapers/scrapeCapitolTrades.js';
 import tickerToIssuerId from '../scrapers/tickerToIssuerId.js';
 
 /**
- * 🔎 Fetch and format congressional trades for a given stock ticker.
+ * 🔎 Fetches congressional trades for a given ticker using Puppeteer scraping.
  *
- * Step-by-step:
- * 1. Resolve stock ticker to CapitolTrades issuerId via Puppeteer.
- * 2. Scrape CapitolTrades using the issuerId for recent trades.
- * 3. Format and return trades as a human-readable string.
- *
- * @param {string} ticker - A valid stock ticker (e.g., "AAPL", "SOFI")
- * @returns {Promise<string>} - Formatted trade summary or fallback message
+ * @param {string} ticker - Stock symbol (e.g., "AAPL", "SOFI")
+ * @returns {Promise<Array<Object>>} - Array of trade objects with fields:
+ *   { representative, type, amount, date, link }
  */
-
 const getCongressTrades = async (ticker) => {
   try {
-    console.log(`\n🔍 Resolving issuerId for ticker: ${ticker}`);
+    console.log(`\n🔍 [getCongressTrades] Resolving issuerId for ${ticker}...`);
 
-    // 🧭 Step 1: Get the issuerId from ticker
     const issuerId = await tickerToIssuerId(ticker);
 
     if (!issuerId) {
-      console.warn(`⚠️ No issuer ID found for ${ticker}`);
-      return `❌ No issuer ID found for ${ticker}`;
+      console.warn(`⚠️ No issuerId resolved for ticker: ${ticker}`);
+      return []; // ✅ Always return array
     }
 
-    console.log(`✅ Resolved issuerId: ${issuerId}`);
-    console.log(`📦 Fetching trades from CapitolTrades for issuerId ${issuerId}`);
+    console.log(`✅ IssuerId resolved: ${issuerId}`);
+    console.log(`🌐 Scraping CapitolTrades for issuer: ${issuerId}...`);
 
-    // 📈 Step 2: Scrape trades from CapitolTrades
     const trades = await scrapeCapitolTrades(issuerId);
 
     if (!Array.isArray(trades) || trades.length === 0) {
-      console.warn(`⚠️ No trades found for issuer ${issuerId}`);
-      return `No recent congressional trades found.`;
+      console.warn(`⚠️ No congressional trades found for issuerId ${issuerId}`);
+      return []; // ✅ Consistent: return empty array
     }
 
-    // 🧾 Step 3: Format each trade into a readable summary
-    const formatted = trades.map((t, i) => {
-      console.log(`#${i + 1}`);
-      console.log(`🧑 ${t.representative}`);
-      console.log(`📆 ${t.date}`);
-      console.log(`💼 ${t.type.toUpperCase()} for ${t.amount}`);
-      console.log(`🔗 ${t.link}`);
-      console.log('---');
-
-      return `• ${t.representative}\n${t.type.toUpperCase()} (${t.amount}) on ${t.date}\n🔗 ${t.link}`;
+    console.log(`📊 ${trades.length} congressional trade(s) scraped for ${ticker}:`);
+    trades.forEach((t, i) => {
+      console.log(`#${i + 1} — ${t.representative} | ${t.type} | ${t.amount} | ${t.date} | ${t.link}`);
     });
 
-    // 🎯 Return formatted trades as a newline-separated string
-    return formatted.join('\n\n');
+    // ✅ Normalize and return trades
+    return trades.map(t => ({
+      representative: t.representative ?? 'Unknown',
+      type: t.type ?? 'N/A',
+      amount: t.amount ?? 'N/A',
+      date: t.date ?? 'N/A',
+      link: t.link ?? '#'
+    }));
 
   } catch (err) {
-    console.error(`❌ getCongressTrades error for ${ticker}:`, err.message);
-    return `❌ Error fetching congressional trades for ${ticker}`;
+    console.error(`❌ getCongressTrades error for ${ticker}: ${err.message}`);
+    return []; // ✅ Always return array on failure
   }
 };
 
