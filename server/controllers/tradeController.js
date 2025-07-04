@@ -232,8 +232,6 @@ export const validateTicker = async (req, res) => {
 
 
 
-// ✅ File: controllers/tradeController.js
-
 export const analyzeTrade = async (req, res) => {
   try {
     console.log("🚀 [analyzeTrade] CONTROLLER TRIGGERED");
@@ -253,35 +251,21 @@ export const analyzeTrade = async (req, res) => {
     const enrichedTickers = [];
     console.log(`🔁 Processing ${watchlist.length} tickers in watchlist`);
 
-    // ===========================================
-    // 🔁 PROCESS EACH TICKER IN WATCHLIST
-    // ===========================================
     for (const ticker of watchlist) {
+      let gptResponse; // ✅ Declare outside try so it's accessible after
+
       try {
         console.log(`\n🔍 [TICKER PROCESSING] Starting analysis for: ${ticker}`);
 
-        // ========================
-        // 📦 1. DATA ENRICHMENT
-        // ========================
-        console.log(`🧠 [PHASE 1] Enriching data for ${ticker}...`);
-        const enrichedData = await enrichTickerData({
-          ticker,
-          capital,
-          riskTolerance
-        });
+        // 📦 1. Enrich Data
+        const enrichedData = await enrichTickerData({ ticker, capital, riskTolerance });
 
-        // ========================
-        // ✅ 2. VALIDATION CHECKS
-        // ========================
-        console.log(`🛡️ [PHASE 2] Validating enriched data for ${ticker}...`);
-
-        // Check if enrichment failed
         if (!enrichedData) {
           console.warn(`⛔ SKIPPING: Enrichment failed for ${ticker}`);
           continue;
         }
 
-        // Validate critical fields
+        // Validate minimum required fields
         const missingFields = [];
         if (!enrichedData.stockPrice) missingFields.push('stockPrice');
         if (!enrichedData.contract) missingFields.push('contract');
@@ -289,137 +273,87 @@ export const analyzeTrade = async (req, res) => {
 
         if (missingFields.length > 0) {
           console.warn(`⚠️ INCOMPLETE DATA: Missing ${missingFields.join(', ')} for ${ticker}`);
-          console.dir(enrichedData, { depth: 2 });
           continue;
         }
 
-        // Validate contract object structure
         const contract = enrichedData.contract;
         if (!contract || typeof contract.ask !== 'number' || typeof contract.strike_price !== 'number') {
-          console.warn(`⚠️ INVALID CONTRACT: Missing required fields for ${ticker}`);
-          console.log("🧪 Contract debug:", contract);
+          console.warn(`⚠️ INVALID CONTRACT STRUCTURE for ${ticker}`);
           continue;
         }
 
-        // ========================
-        // 🤖 3. GPT ANALYSIS
-        // ========================
-        console.log(`🧠 [PHASE 3] Sending data to GPT for ${ticker}...`);
-
-        // 1. Full contract validation and logging
-        console.log("🔍 [CONTRACT VALIDATION] Checking contract data integrity...");
-        if (!contract || typeof contract !== 'object') {
-          console.error(`❌ CRITICAL: Contract is ${typeof contract} for ${ticker}`);
-        } else {
-          console.log("✅ Contract is a valid object");
-          console.log("📝 Contract Details:", {
-            ticker: contract.ticker,
-            ask: contract.ask,
-            strike: contract.strike_price,
-            expiration: contract.expiration_date,
-            delta: contract.delta,
-            iv: contract.implied_volatility,
-            oi: contract.open_interest
-          });
-        }
-
-        // 2. Congressional data validation
-        console.log("🏛️ [CONGRESS VALIDATION] Checking congressional data...");
-        if (!enrichedData.congress) {
-          console.warn("⚠️ Congressional data is empty");
-        } else {
-          console.log(`📏 Congress data length: ${enrichedData.congress.length} characters`);
-          console.log("📄 Congress preview:", enrichedData.congress.substring(0, 100) + "...");
-        }
-
-        // 3. Full enriched data dump
-        console.log("📦 [ENRICHED DATA DUMP] Full structure being sent to GPT:");
-        console.log(JSON.stringify({
-          ...enrichedData,
-          // Protect sensitive data
-          indicators: enrichedData.indicators ? "EXISTS" : "MISSING",
-          sentiment: enrichedData.sentiment ? "EXISTS" : "MISSING",
-          contract: enrichedData.contract ? {
-            ticker: enrichedData.contract.ticker,
-            ask: enrichedData.contract.ask,
-            strike: enrichedData.contract.strike_price
-          } : "UNDEFINED"
-        }, null, 2));
-
-        // 4. Send to GPT with additional validation
+        // 🤖 GPT RECOMMENDATION
         try {
           console.log("🚀 Sending to getGptRecommendation...");
-          const gptResponse = await getGptRecommendation(enrichedData);
+          gptResponse = await getGptRecommendation(enrichedData);
 
-          // 5. GPT response validation
           if (!gptResponse?.tradeType) {
             console.error(`❌ INVALID GPT RESPONSE for ${ticker}:`, gptResponse);
-            console.log("🧪 Response type:", typeof gptResponse);
-
-            if (typeof gptResponse === 'string') {
-              console.log("📄 String content:", gptResponse.substring(0, 200));
-            }
             continue;
           }
 
           console.log(`📝 GPT RECOMMENDATION for ${ticker}: ${gptResponse.tradeType} (${gptResponse.confidence})`);
-
-          // ... rest of your code ...
         } catch (gptError) {
-          console.error(`🔥 GPT PROCESSING ERROR for ${ticker}:`, gptError);
-          console.error("Error details:", gptError.message);
-          console.error("Stack trace:", gptError.stack);
-        }
-        // Validate GPT response
-        if (!gptResponse?.tradeType || !gptResponse?.confidence) {
-          console.error(`❌ INVALID GPT RESPONSE for ${ticker}:`, gptResponse);
+          console.error(`🔥 GPT PROCESSING ERROR for ${ticker}:`, gptError.message);
           continue;
         }
-        console.log(`📝 GPT RECOMMENDATION for ${ticker}: ${gptResponse.tradeType} (${gptResponse.confidence})`);
 
+        // Final response validation (after catch)
+        if (!gptResponse || !gptResponse.tradeType || !gptResponse.confidence) {
+          console.error(`❌ INVALID GPT RESPONSE OUTSIDE TRY for ${ticker}:`, gptResponse);
+          continue;
+        }
         // ========================
-        // 💾 4. SAVE TO DATABASE
+        // 💵 Calculate Additional Fields
         // ========================
+        const estimatedCost = contract.midPrice * 100;
+        const breakEvenPrice = contract.contract_type === 'call'
+          ? contract.strike_price + contract.ask
+          : contract.strike_price - contract.ask;
+
+        const expectedROI = ((gptResponse.targetPrice - gptResponse.entryPrice) / gptResponse.entryPrice) * 100;
+
+
+        // 💾 Save to MongoDB
         console.log(`💾 [PHASE 4] Saving recommendation for ${ticker}...`);
         const newRec = new TradeRecommendation({
-  tickers: [ticker],
-  capital: enrichedData.capital,
-  riskTolerance,
-  recommendationDirection: gptResponse.tradeType.toLowerCase(),
-  confidence: gptResponse.confidence.toLowerCase(),
-  gptResponse: gptResponse.analysis,
-  entryPrice: gptResponse.entryPrice,
-  targetPrice: gptResponse.targetPrice,
-  stopLoss: gptResponse.stopLoss,
-  option: contract,
-  expiryDate: contract?.expiration_date,
-  sentimentSummary: enrichedData.sentiment,
-  congressTrades: enrichedData.congress,
-  indicators: enrichedData.indicators
-});
-        // Save the recommendation
+          tickers: [ticker],
+          capital: enrichedData.capital,
+          riskTolerance,
+          recommendationDirection: gptResponse.tradeType.toLowerCase(),
+          confidence: gptResponse.confidence.toLowerCase(),
+          gptResponse: gptResponse.analysis,
+          entryPrice: gptResponse.entryPrice,
+          targetPrice: gptResponse.targetPrice,
+          stopLoss: gptResponse.stopLoss,
+          estimatedCost,
+          breakEvenPrice,
+          expectedROI,
+          option: contract,
+          expiryDate: contract?.expiration_date,
+          sentimentSummary: enrichedData.sentiment,
+          congressTrades: enrichedData.congress,
+          indicators: enrichedData.indicators
+        });
+
 
         await newRec.save();
         console.log(`✅ RECOMMENDATION SAVED for ${ticker}`);
 
-        // ========================
-        // 📦 5. ADD TO RESPONSE
-        // ========================
+        // 📦 Append to final response array
         enrichedTickers.push({
           ticker,
           recommendation: gptResponse,
           option: contract
         });
 
-      } catch (tickerError) {
-        console.error(`⚠️ ERROR PROCESSING ${ticker}:`, tickerError.message);
+      } catch (err) {
+        console.error(`⚠️ ERROR PROCESSING ${ticker}:`, err.message);
+        continue;
       }
     }
 
-    // ========================
-    // 📮 6. FINAL RESPONSE
-    // ========================
-    console.log("\n✅ PROCESSING COMPLETE");
+    // FINAL RESPONSE
     if (!enrichedTickers.length) {
       const errorMsg = "⚠️ No valid recommendations generated";
       console.warn(errorMsg);
