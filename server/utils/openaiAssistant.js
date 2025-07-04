@@ -15,6 +15,7 @@ const openai = new OpenAI({
  * @returns {Promise<Object>} GPT-generated trade recommendation
  */
 export const getGptRecommendation = async (enrichedData) => {
+  let gptResponse = '';
   try {
     console.log('\n🧠 [getGptRecommendation] STARTING GPT ANALYSIS');
     console.log('📦 Received enriched data structure:');
@@ -181,7 +182,7 @@ ${congress || "No recent congressional trades"}
     // 📥 4. RESPONSE PROCESSING
     // ==================================
     console.log('\n🔍 [PHASE 4] Processing GPT response...');
-    const gptResponse = completion?.choices?.[0]?.message?.content?.trim();
+    gptResponse = completion?.choices?.[0]?.message?.content?.trim();
 
     if (!gptResponse) {
       console.error('❌ EMPTY RESPONSE: No content from GPT');
