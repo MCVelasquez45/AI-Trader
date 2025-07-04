@@ -230,7 +230,7 @@ export const validateTicker = async (req, res) => {
 // ✅ Controller: analyzeTrade — Main endpoint to generate trade recommendations
 
 
-
+// ✅ File: controllers/tradeController.js
 
 export const analyzeTrade = async (req, res) => {
   try {
@@ -251,71 +251,73 @@ export const analyzeTrade = async (req, res) => {
     const enrichedTickers = [];
     console.log(`🔁 Processing ${watchlist.length} tickers in watchlist`);
 
+    // ===========================================
+    // 🔁 PROCESS EACH TICKER IN WATCHLIST
+    // ===========================================
     for (const ticker of watchlist) {
-      let gptResponse; // ✅ Declare outside try so it's accessible after
+      console.log(`\n🔍 [TICKER START] Processing: ${ticker}`);
+      let gptResponse = null; // ✅ Declare outside to avoid ReferenceError
 
       try {
-        console.log(`\n🔍 [TICKER PROCESSING] Starting analysis for: ${ticker}`);
-
-        // 📦 1. Enrich Data
+        // ========================
+        // 📦 1. Enrich Ticker Data
+        // ========================
         const enrichedData = await enrichTickerData({ ticker, capital, riskTolerance });
-
         if (!enrichedData) {
-          console.warn(`⛔ SKIPPING: Enrichment failed for ${ticker}`);
+          console.warn(`⛔ SKIPPED: No enrichment data for ${ticker}`);
           continue;
         }
 
-        // Validate minimum required fields
-        const missingFields = [];
-        if (!enrichedData.stockPrice) missingFields.push('stockPrice');
-        if (!enrichedData.contract) missingFields.push('contract');
-        if (!enrichedData.indicators) missingFields.push('indicators');
+        // ========================
+        // 🔍 2. Validate Required Fields
+        // ========================
+        const missing = [];
+        if (!enrichedData.stockPrice) missing.push('stockPrice');
+        if (!enrichedData.contract) missing.push('contract');
+        if (!enrichedData.indicators) missing.push('indicators');
 
-        if (missingFields.length > 0) {
-          console.warn(`⚠️ INCOMPLETE DATA: Missing ${missingFields.join(', ')} for ${ticker}`);
+        if (missing.length) {
+          console.warn(`⚠️ MISSING FIELDS for ${ticker}:`, missing.join(', '));
           continue;
         }
 
         const contract = enrichedData.contract;
         if (!contract || typeof contract.ask !== 'number' || typeof contract.strike_price !== 'number') {
-          console.warn(`⚠️ INVALID CONTRACT STRUCTURE for ${ticker}`);
+          console.warn(`⚠️ INVALID CONTRACT STRUCTURE for ${ticker}:`, contract);
           continue;
         }
 
-        // 🤖 GPT RECOMMENDATION
+        // ========================
+        // 🧠 3. Get GPT Recommendation
+        // ========================
         try {
           console.log("🚀 Sending to getGptRecommendation...");
           gptResponse = await getGptRecommendation(enrichedData);
 
-          if (!gptResponse?.tradeType) {
-            console.error(`❌ INVALID GPT RESPONSE for ${ticker}:`, gptResponse);
+          if (!gptResponse || !gptResponse.tradeType || !gptResponse.confidence) {
+            console.error(`❌ GPT Response Invalid for ${ticker}:`, gptResponse);
             continue;
           }
 
           console.log(`📝 GPT RECOMMENDATION for ${ticker}: ${gptResponse.tradeType} (${gptResponse.confidence})`);
-        } catch (gptError) {
-          console.error(`🔥 GPT PROCESSING ERROR for ${ticker}:`, gptError.message);
+        } catch (gptErr) {
+          console.error(`🔥 GPT ERROR for ${ticker}:`, gptErr.message);
           continue;
         }
 
-        // Final response validation (after catch)
-        if (!gptResponse || !gptResponse.tradeType || !gptResponse.confidence) {
-          console.error(`❌ INVALID GPT RESPONSE OUTSIDE TRY for ${ticker}:`, gptResponse);
-          continue;
-        }
         // ========================
-        // 💵 Calculate Additional Fields
+        // 💸 4. Calculate Trade Metrics
         // ========================
         const estimatedCost = contract.midPrice * 100;
         const breakEvenPrice = contract.contract_type === 'call'
           ? contract.strike_price + contract.ask
           : contract.strike_price - contract.ask;
-
         const expectedROI = ((gptResponse.targetPrice - gptResponse.entryPrice) / gptResponse.entryPrice) * 100;
 
-
-        // 💾 Save to MongoDB
-        console.log(`💾 [PHASE 4] Saving recommendation for ${ticker}...`);
+        // ========================
+        // 💾 5. Save to MongoDB
+        // ========================
+        console.log(`💾 Saving trade recommendation for ${ticker}...`);
         const newRec = new TradeRecommendation({
           tickers: [ticker],
           capital: enrichedData.capital,
@@ -336,11 +338,12 @@ export const analyzeTrade = async (req, res) => {
           indicators: enrichedData.indicators
         });
 
-
         await newRec.save();
-        console.log(`✅ RECOMMENDATION SAVED for ${ticker}`);
+        console.log(`✅ SAVED: Trade recommendation for ${ticker}`);
 
-        // 📦 Append to final response array
+        // ========================
+        // 📦 6. Add to Response Array
+        // ========================
         enrichedTickers.push({
           ticker,
           recommendation: gptResponse,
@@ -353,14 +356,16 @@ export const analyzeTrade = async (req, res) => {
       }
     }
 
-    // FINAL RESPONSE
+    // ========================
+    // 📮 FINAL RESPONSE
+    // ========================
     if (!enrichedTickers.length) {
       const errorMsg = "⚠️ No valid recommendations generated";
       console.warn(errorMsg);
       return res.status(500).json({ error: errorMsg });
     }
 
-    console.log(`🎉 SUCCESS: Generated ${enrichedTickers.length} recommendations`);
+    console.log(`🎉 SUCCESS: ${enrichedTickers.length} trade(s) generated`);
     return res.status(200).json({
       message: "✅ Trade recommendations created",
       recommendations: enrichedTickers
@@ -371,6 +376,7 @@ export const analyzeTrade = async (req, res) => {
     return res.status(500).json({ error: "Server error during trade analysis." });
   }
 };
+
 
 
 // 📚 Fetch all saved trade recommendations
