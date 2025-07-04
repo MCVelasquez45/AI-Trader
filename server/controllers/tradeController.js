@@ -382,17 +382,22 @@ export const analyzeTrade = async (req, res) => {
         // ========================
         console.log(`💾 [PHASE 4] Saving recommendation for ${ticker}...`);
         const newRec = new TradeRecommendation({
-          tickers: [ticker],
-          capital: enrichedData.capital,
-          riskTolerance,
-          recommendationDirection: gptResponse.tradeType,
-          confidence: gptResponse.confidence,
-          analysis: gptResponse.analysis,
-          entryPrice: gptResponse.entryPrice,
-          targetPrice: gptResponse.targetPrice,
-          stopLoss: gptResponse.stopLoss,
-          option: contract
-        });
+  tickers: [ticker],
+  capital: enrichedData.capital,
+  riskTolerance,
+  recommendationDirection: gptResponse.tradeType.toLowerCase(),
+  confidence: gptResponse.confidence.toLowerCase(),
+  gptResponse: gptResponse.analysis,
+  entryPrice: gptResponse.entryPrice,
+  targetPrice: gptResponse.targetPrice,
+  stopLoss: gptResponse.stopLoss,
+  option: contract,
+  expiryDate: contract?.expiration_date,
+  sentimentSummary: enrichedData.sentiment,
+  congressTrades: enrichedData.congress,
+  indicators: enrichedData.indicators
+});
+        // Save the recommendation
 
         await newRec.save();
         console.log(`✅ RECOMMENDATION SAVED for ${ticker}`);
@@ -432,6 +437,8 @@ export const analyzeTrade = async (req, res) => {
     return res.status(500).json({ error: "Server error during trade analysis." });
   }
 };
+
+
 // 📚 Fetch all saved trade recommendations
 export const getAllTrades = async (req, res) => {
   try {
