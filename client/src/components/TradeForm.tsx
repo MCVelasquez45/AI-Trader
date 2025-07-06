@@ -91,9 +91,10 @@ const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
       onSubmit={handleSubmit}
       className="rounded p-4 shadow border border-gray-700 mb-5"
       style={{
-        background: 'linear-gradient(to bottom right, #1f1f1f, #0e0e0e)',
-        backdropFilter: 'blur(4px)'
-      }}
+  background: 'linear-gradient(to bottom right, #0f172a,rgb(34, 41, 54))',
+  backdropFilter: 'blur(4px)'
+}}
+
     >
       {/* 🎯 Input Fields */}
       <div className="row g-4">

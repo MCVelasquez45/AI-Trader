@@ -23,7 +23,7 @@ const Dashboard: React.FC = () => {
 
   // 🚀 Handles the core analysis logic
   const handleAnalyze = async (tickers: string[], capital: number, riskTolerance: string) => {
-    console.log('📡 Submitting tickers to backend:', tickers);
+    console.log('📱 Submitting tickers to backend:', tickers);
     console.log('💰 Capital:', capital, '| 🧠 Risk:', riskTolerance);
     setLoading(true);
     setUnaffordableTickers([]);
@@ -71,7 +71,7 @@ const Dashboard: React.FC = () => {
 
   // 📦 Render UI
   return (
-    <div className="min-vh-100 text-white" style={{ background: 'linear-gradient(to bottom right, #1f1f1f, #0e0e0e)' }}>
+    <div className="min-vh-100 text-white" style={{ background: 'linear-gradient(to bottom right, #0f172a, #0b1120)' }}>
       {/* 🔝 Header */}
       <header className="py-4 border-bottom ">
         <div className="container d-flex justify-content-between align-items-center">
@@ -95,8 +95,8 @@ const Dashboard: React.FC = () => {
             <p className="text-secondary">Enter a stock ticker symbol, your available capital, and your risk tolerance level to get an AI-powered options trading recommendation.</p>
           </div>
 
-          {/* 🧾 Trade Form */}
-          <div className=" bg-opacity-75 rounded p-4 shadow border border-dark mb-4">
+          {/* 📾 Trade Form */}
+          <div className="bg-opacity-75 rounded p-4 shadow border border-dark mb-4">
             <TradeForm onAnalyze={handleAnalyze} />
           </div>
 
@@ -115,13 +115,13 @@ const Dashboard: React.FC = () => {
             </div>
           )}
 
-          {/* 📭 Empty State */}
+          {/* 📟 Empty State */}
           {!loading && !activeTicker && (
-            <div className=" rounded p-5 text-center border border-secondary mb-5">
+            <div className="rounded p-5 text-center border border-secondary mb-5">
               <svg width="64" height="64" className="text-secondary mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
-              <h3 className="h5  mb-2">No Analysis Yet</h3>
+              <h3 className="h5 mb-2">No Analysis Yet</h3>
               <p className="text-secondary">Enter your details above to get started with your options trade analysis.</p>
             </div>
           )}
@@ -149,7 +149,7 @@ const Dashboard: React.FC = () => {
                 icon: <i className="bi bi-bank fs-2 text-success"></i>
               }].map((feature, index) => (
                 <div key={index} className="col-md-4">
-                  <div className=" rounded p-4 h-100 border border-secondary text-center">
+                  <div className="rounded p-4 h-100 border border-secondary text-center">
                     <div className="mb-3">{feature.icon}</div>
                     <h4 className="h6 fw-semibold mb-2">{feature.title}</h4>
                     <p className="text-secondary small">{feature.description}</p>
