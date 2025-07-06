@@ -1,5 +1,6 @@
 // 📦 Import React and hooks
 import React, { useState } from 'react';
+import { BsBank, BsBarChartFill, BsChatDotsFill } from 'react-icons/bs';
 
 // 📦 Import components
 import TradeForm from '../components/TradeForm';
@@ -117,14 +118,16 @@ const Dashboard: React.FC = () => {
 
           {/* 📟 Empty State */}
           {!loading && !activeTicker && (
-            <div className="rounded p-5 text-center border border-secondary mb-5">
-              <svg width="64" height="64" className="text-secondary mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-dark bg-opacity-25 rounded-xl p-5 text-center border-4 border-dashed border-blue-800 mb-5">
+              <svg width="64" height="64" className="text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
-              <h3 className="h5 mb-2">No Analysis Yet</h3>
-              <p className="text-secondary">Enter your details above to get started with your options trade analysis.</p>
+              <h3 className="text-white text-lg font-semibold mb-3">No Analysis Yet</h3>
+              <p className="text-gray-400">Enter your details above to get started with your options trade analysis.</p>
             </div>
           )}
+
+
 
           {/* ✅ Analysis Result Panel */}
           {activeTicker && !loading && (
@@ -138,19 +141,19 @@ const Dashboard: React.FC = () => {
               {[{
                 title: "Real-Time Market Data",
                 description: "We analyze real-time stock prices, volume, and technical indicators to identify potential opportunities.",
-                icon: <i className="bi bi-bar-chart-fill fs-2 text-info"></i>
+                icon: <BsBarChartFill size={32} className="text-info" />
               }, {
                 title: "Sentiment Analysis",
                 description: "Our AI scans news articles, social media, and analyst reports to gauge market sentiment around each stock.",
-                icon: <i className="bi bi-chat-dots-fill fs-2 text-primary"></i>
+                icon: <BsChatDotsFill size={32} className="text-primary" />
               }, {
                 title: "Congressional Insights",
                 description: "Track insider trading activity and regulatory changes that could impact stock performance.",
-                icon: <i className="bi bi-bank fs-2 text-success"></i>
+                icon: <BsBank size={32} className="text-success" />
               }].map((feature, index) => (
                 <div key={index} className="col-md-4">
                   <div className="rounded p-4 h-100 border border-secondary text-center">
-                    <div className="mb-3">{feature.icon}</div>
+                    <div className="mb-3 d-flex justify-content-center">{feature.icon}</div>
                     <h4 className="h6 fw-semibold mb-2">{feature.title}</h4>
                     <p className="text-secondary small">{feature.description}</p>
                   </div>
@@ -158,6 +161,7 @@ const Dashboard: React.FC = () => {
               ))}
             </div>
           </section>
+
 
           {/* 🚀 Call To Action Section */}
           <section className="mt-5 text-center py-5 rounded border border-secondary" style={{ background: 'linear-gradient(to right, rgba(0, 123, 255, 0.1), rgba(138, 43, 226, 0.1))' }}>
