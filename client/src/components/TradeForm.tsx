@@ -87,7 +87,14 @@ const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className=" bg-opacity-75 rounded p-4 shadow border border-dark">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded p-4 shadow border border-gray-700 mb-5"
+      style={{
+        background: 'linear-gradient(to bottom right, #1f1f1f, #0e0e0e)',
+        backdropFilter: 'blur(4px)'
+      }}
+    >
       {/* 🎯 Input Fields */}
       <div className="row g-4">
         <div className="col-md-4">
@@ -135,7 +142,7 @@ const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
             <span
               key={ticker}
               onClick={() => removeTicker(ticker)}
-              className="badge bg-secondary text-white px-3 py-2 rounded-pill cursor-pointer"
+              className="badge bg-secondary text-white px-3 py-2 rounded-pill"
               style={{ cursor: 'pointer' }}
             >
               {ticker} ✖
@@ -159,7 +166,8 @@ const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
       <button
         type="submit"
         disabled={loading}
-        className="btn btn-primary mt-4 w-100 fw-semibold d-flex justify-content-center align-items-center"
+        className="mt-4 w-100 fw-semibold py-2 rounded border-0 d-flex justify-content-center align-items-center"
+        style={{ background: 'linear-gradient(to right, #3b82f6, #9333ea)', color: '#fff', transition: 'transform 0.3s ease' }}
       >
         {loading ? (
           <>

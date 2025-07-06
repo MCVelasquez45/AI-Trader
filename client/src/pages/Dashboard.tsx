@@ -71,10 +71,13 @@ const Dashboard: React.FC = () => {
 
   // 📦 Render UI
   return (
-    <div className="min-vh-100 bg-dark text-light">
-      <header className="py-4 border-bottom border-secondary">
+    <div className="min-vh-100 text-white" style={{ background: 'linear-gradient(to bottom right, #1f1f1f, #0e0e0e)' }}>
+      {/* 🔝 Header */}
+      <header className="py-4 border-bottom ">
         <div className="container d-flex justify-content-between align-items-center">
-          <h1 className="fs-3 fw-bold text-primary">AI Options Trading Assistant</h1>
+          <h1 className="fs-3 fw-bold" style={{ backgroundImage: 'linear-gradient(to right, #0ea5e9, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            AI Options Trading Assistant
+          </h1>
           <nav className="d-none d-md-block">
             <a href="#" className="text-light mx-2 text-decoration-none">Dashboard</a>
             <a href="#" className="text-light mx-2 text-decoration-none">Market Data</a>
@@ -83,9 +86,10 @@ const Dashboard: React.FC = () => {
         </div>
       </header>
 
+      {/* 🔧 Main Content */}
       <main className="container py-5">
         <div className="mx-auto" style={{ maxWidth: '960px' }}>
-          {/* 📌 Intro */}
+          {/* 📌 Intro Section */}
           <div className="mb-5 text-center">
             <h2 className="fs-2 fw-bold mb-3">Analyze Your Trade Opportunity</h2>
             <p className="text-secondary">Enter a stock ticker symbol, your available capital, and your risk tolerance level to get an AI-powered options trading recommendation.</p>
@@ -96,10 +100,10 @@ const Dashboard: React.FC = () => {
             <TradeForm onAnalyze={handleAnalyze} />
           </div>
 
-          {/* ⏳ Loading Spinner */}
+          {/* ⏳ Loading State */}
           {loading && <TypingDots />}
 
-          {/* ⚠️ Warning for Skipped Tickers */}
+          {/* ⚠️ Skipped Tickers */}
           {unaffordableTickers.length > 0 && (
             <div className="alert alert-warning">
               <strong>⚠️ Some tickers were skipped:</strong>
@@ -111,23 +115,23 @@ const Dashboard: React.FC = () => {
             </div>
           )}
 
-          {/* 📭 No Results */}
+          {/* 📭 Empty State */}
           {!loading && !activeTicker && (
-            <div className="bg-dark rounded p-5 text-center border border-secondary mb-5">
+            <div className=" rounded p-5 text-center border border-secondary mb-5">
               <svg width="64" height="64" className="text-secondary mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
-              <h3 className="h5 text-muted mb-2">No Analysis Yet</h3>
+              <h3 className="h5  mb-2">No Analysis Yet</h3>
               <p className="text-secondary">Enter your details above to get started with your options trade analysis.</p>
             </div>
           )}
 
-          {/* ✅ Results Panel */}
+          {/* ✅ Analysis Result Panel */}
           {activeTicker && !loading && (
             <RecommendationPanel analysis={analysisData[activeTicker]} />
           )}
 
-          {/* 💡 Feature Summary */}
+          {/* 💡 How It Works */}
           <section className="mt-5">
             <h2 className="h4 fw-bold mb-4 text-center">How It Works</h2>
             <div className="row g-4">
@@ -145,7 +149,7 @@ const Dashboard: React.FC = () => {
                 icon: <i className="bi bi-bank fs-2 text-success"></i>
               }].map((feature, index) => (
                 <div key={index} className="col-md-4">
-                  <div className="bg-dark rounded p-4 h-100 border border-secondary text-center">
+                  <div className=" rounded p-4 h-100 border border-secondary text-center">
                     <div className="mb-3">{feature.icon}</div>
                     <h4 className="h6 fw-semibold mb-2">{feature.title}</h4>
                     <p className="text-secondary small">{feature.description}</p>
@@ -155,14 +159,14 @@ const Dashboard: React.FC = () => {
             </div>
           </section>
 
-          {/* 🚀 Call To Action */}
-          <section className="mt-5 text-center py-5 bg-dark bg-opacity-50 rounded border border-secondary">
+          {/* 🚀 Call To Action Section */}
+          <section className="mt-5 text-center py-5 rounded border border-secondary" style={{ background: 'linear-gradient(to right, rgba(0, 123, 255, 0.1), rgba(138, 43, 226, 0.1))' }}>
             <h2 className="h4 fw-bold mb-3">Ready to Make Smarter Trades?</h2>
             <p className="text-secondary mb-4">Our AI-powered assistant combines multiple data sources to give you actionable options trading recommendations.</p>
-            <button className="btn btn-primary px-4 py-2 fw-semibold">Start Analyzing Now</button>
+            <button className="btn fw-semibold px-4 py-2" style={{ background: 'linear-gradient(to right, #0ea5e9, #a855f7)', color: '#fff', border: 'none' }}>Start Analyzing Now</button>
           </section>
 
-          {/* 🕰️ Trade History */}
+          {/* 🕰️ History Section */}
           {showHistory && (
             <div className="mt-5">
               <div className="bg-secondary bg-opacity-75 rounded p-4 shadow border border-dark">
@@ -172,7 +176,7 @@ const Dashboard: React.FC = () => {
             </div>
           )}
 
-          {/* 🔁 Toggle History Button */}
+          {/* 🔁 Toggle GPT History Button */}
           <div className="text-center mt-4">
             <button className="btn btn-link text-primary text-decoration-none" onClick={() => setShowHistory(!showHistory)}>
               {showHistory ? 'Hide GPT History' : 'View GPT History'}
@@ -192,4 +196,5 @@ const Dashboard: React.FC = () => {
   );
 };
 
+// ✅ Export the Dashboard component
 export default Dashboard;
