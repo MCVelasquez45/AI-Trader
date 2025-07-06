@@ -1,11 +1,11 @@
 // ✅ File: utils/enrichTickerData.js
 
-import getStockPrice from '../utils/getStockPrice.js';
-import { getAffordableOptionContracts } from '../utils/getAffordableOptionContracts.js';
-import getNewsSentiment from '../utils/getNewsSentiment.js';
-import getCongressTrades from '../utils/getCongressTrades.js';
-import getMinuteCandles from '../utils/getMinuteCandles.js';
-import calculateIndicators from '../utils/calculateIndicators.js';
+import getStockPrice from './getStockPrice.js';
+import { getAffordableOptionContracts } from './getAffordableOptionContracts.js';
+import getNewsSentiment from './getNewsSentiment.js';
+import getCongressTrades from './getCongressTrades.js';
+import getMinuteCandles from './getMinuteCandles.js';
+import calculateIndicators from './calculateIndicators.js';
 
 /**
  * 🧠 Enriches ticker data with all required analysis components:

@@ -24,6 +24,7 @@ app.use = function (path, ...rest) {
 // ✅ CORS Setup
 const allowedOrigins = [
   'http://localhost:5173',
+   'http://localhost:5174', // ✅ ADD THIS LINE
   'https://ai-trader-uvj9.vercel.app',
   'https://ai-trader-uvj9-qurp9efkm-mcvelasquez45s-projects.vercel.app',
 ];

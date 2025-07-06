@@ -1,6 +1,7 @@
 // ✅ Import the React core libraries
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 // ✅ Import global Tailwind styles (adjust path if needed)
 import './styles/theme.css'; // or './index.css' if that's your Tailwind file

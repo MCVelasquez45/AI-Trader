@@ -1,3 +1,4 @@
+// 📦 React and Types
 import React, { useState } from 'react';
 import { analyzeTrade, validateTicker } from '../api/tradeApi';
 import type { RiskLevel, TradeFormProps } from '../types/TradeForm';
@@ -12,6 +13,7 @@ const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
   const [loading, setLoading] = useState(false);
   const [validationResult, setValidationResult] = useState<any>(null);
 
+  // ➕ Add ticker to the list if valid
   const addTicker = async () => {
     const symbol = tickerInput.trim().toUpperCase();
     if (!symbol || tickers.includes(symbol)) return;
@@ -29,10 +31,12 @@ const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
     setValidationResult(result);
   };
 
+  // ❌ Remove a ticker
   const removeTicker = (ticker: string) => {
     setTickers(prev => prev.filter(t => t !== ticker));
   };
 
+  // 📤 Submit trade analysis request
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -83,38 +87,39 @@ const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 md:p-8 shadow-xl border border-gray-700 mb-12">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Stock Ticker Symbol</label>
+    <form onSubmit={handleSubmit} className=" bg-opacity-75 rounded p-4 shadow border border-dark">
+      {/* 🎯 Input Fields */}
+      <div className="row g-4">
+        <div className="col-md-4">
+          <label className="form-label text-light">Stock Ticker Symbol</label>
           <input
             type="text"
             value={tickerInput}
             onChange={(e) => setTickerInput(e.target.value.toUpperCase())}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTicker(); } }}
             placeholder="e.g., AAPL"
-            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+            className="form-control bg-dark text-white border-secondary"
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Available Capital ($)</label>
+        <div className="col-md-4">
+          <label className="form-label text-light">Available Capital ($)</label>
           <input
             type="number"
             min="0"
             value={capital}
             onChange={(e) => setCapital(e.target.value)}
             placeholder="e.g., 5000"
-            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+            className="form-control bg-dark text-white border-secondary"
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Risk Tolerance</label>
+        <div className="col-md-4">
+          <label className="form-label text-light">Risk Tolerance</label>
           <select
             value={riskTolerance}
             onChange={(e) => setRiskTolerance(e.target.value as RiskLevel)}
-            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+            className="form-select bg-dark text-white border-secondary"
           >
             <option value="low">Low</option>
             <option value="medium">Medium</option>
@@ -123,14 +128,15 @@ const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
         </div>
       </div>
 
-      {/* Tick list */}
+      {/* 🏷️ Selected Tickers */}
       {tickers.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-3 d-flex flex-wrap gap-2">
           {tickers.map((ticker) => (
             <span
               key={ticker}
               onClick={() => removeTicker(ticker)}
-              className="bg-gray-700 text-white px-3 py-1 rounded-full text-sm cursor-pointer hover:bg-red-600 transition"
+              className="badge bg-secondary text-white px-3 py-2 rounded-pill cursor-pointer"
+              style={{ cursor: 'pointer' }}
             >
               {ticker} ✖
             </span>
@@ -138,30 +144,28 @@ const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
         </div>
       )}
 
-      {/* Warnings / Feedback */}
+      {/* ⚠️ Validation Warning */}
       {validationResult?.contracts?.length === 0 && validationResult?.closestITM && (
-        <div className="bg-yellow-800/50 border border-yellow-500 text-yellow-200 rounded mt-4 p-4">
+        <div className="alert alert-warning mt-3">
           Closest ITM contract is <strong>${validationResult.closestITM.ask.toFixed(2)}</strong>, but your capital is only <strong>${parseFloat(capital).toFixed(2)}</strong>.
         </div>
       )}
 
-      {error && <div className="bg-red-700 text-white px-4 py-2 mt-4 rounded">{error}</div>}
-      {successMsg && <div className="bg-green-700 text-white px-4 py-2 mt-4 rounded">{successMsg}</div>}
+      {/* 📛 Error & ✅ Success Feedback */}
+      {error && <div className="alert alert-danger mt-3">{error}</div>}
+      {successMsg && <div className="alert alert-success mt-3">{successMsg}</div>}
 
-      {/* Submit */}
+      {/* 🚀 Submit Button */}
       <button
         type="submit"
         disabled={loading}
-        className="mt-6 w-full py-3 px-6 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium rounded-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+        className="btn btn-primary mt-4 w-100 fw-semibold d-flex justify-content-center align-items-center"
       >
         {loading ? (
-          <span className="flex items-center justify-center">
-            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
+          <>
+            <span className="spinner-border spinner-border-sm me-2"></span>
             Analyzing...
-          </span>
+          </>
         ) : (
           'Get Recommendation'
         )}
