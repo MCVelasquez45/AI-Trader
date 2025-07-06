@@ -1,12 +1,11 @@
 import React from 'react';
-import Dashboard from './pages/ Dashboard';
-import 'bootstrap/dist/css/bootstrap.min.css';
+import Dashboard from './pages/Dashboard';
+
 
 /**
- * App Component
- * Root of the frontend application.
+ * App Component — Root of the frontend application.
  */
-const App: React.FC = () => {
+const App = () => {
   return <Dashboard />;
 };
 

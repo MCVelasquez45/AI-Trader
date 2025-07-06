@@ -15,7 +15,8 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "typeRoots": ["./types", "./node_modules/@types"]
+    "jsxImportSource": "react",          // ✅ THIS LINE IS REQUIRED FOR TS TO UNDERSTAND JSX
+    "types": ["react", "react-dom"]
   },
   "include": ["src", "types"],
   "exclude": ["node_modules"]

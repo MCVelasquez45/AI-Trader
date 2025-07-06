@@ -1,17 +1,9 @@
 import React from 'react';
-import { Card, ListGroup } from 'react-bootstrap';
 import { AnalysisData } from '../types/Analysis';
 
 interface Props {
   analysis?: AnalysisData;
 }
-
-const getUnderlyingSymbol = (optionTicker: string | undefined): string => {
-  if (!optionTicker) return 'N/A';
-  const parts = optionTicker.split(':');
-  if (parts.length < 2) return optionTicker.toUpperCase();
-  return parts[1].slice(0, 4).toUpperCase(); // Extracts "SOFI" from "SOFI250606..."
-};
 
 const RecommendationPanel: React.FC<Props> = ({ analysis }) => {
   if (!analysis) return null;
@@ -27,83 +19,126 @@ const RecommendationPanel: React.FC<Props> = ({ analysis }) => {
     confidence,
     recommendationDirection,
     expiryDate,
-    indicators
+    indicators,
+    breakEvenPrice,
+    expectedROI
   } = analysis;
 
-  const rsi = indicators?.rsi;
-  const vwap = indicators?.vwap;
-  const macd = indicators?.macd;
+  const format = (val: number | undefined | null, prefix = '$') =>
+    typeof val === 'number' ? `${prefix}${val.toFixed(2)}` : 'N/A';
 
-  const fallbackTarget = typeof entryPrice === 'number' ? `${(entryPrice * 1.05).toFixed(2)} (est.)` : 'N/A';
-  const fallbackStop = typeof entryPrice === 'number' ? `${(entryPrice * 0.95).toFixed(2)} (est.)` : 'N/A';
+  const fallbackTarget = entryPrice ? `${(entryPrice * 1.05).toFixed(2)} (est.)` : 'N/A';
+  const fallbackStop = entryPrice ? `${(entryPrice * 0.95).toFixed(2)} (est.)` : 'N/A';
 
   return (
-    <Card className="m-3 shadow">
-      <Card.Header>
-        <span role="img" aria-label="ai">🤖</span> GPT Trade Recommendation
-      </Card.Header>
-      <Card.Body>
-        <ListGroup variant="flush">
-          <ListGroup.Item><strong>📣 Recommendation:</strong> {recommendationDirection?.toUpperCase() ?? 'N/A'}</ListGroup.Item>
-          <ListGroup.Item><strong>💪 Confidence:</strong> {confidence ?? 'N/A'}</ListGroup.Item>
-          <ListGroup.Item><strong>📅 Expiration Date:</strong> {expiryDate ? new Date(expiryDate).toLocaleDateString() : 'N/A'}</ListGroup.Item>
+    <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 md:p-8 shadow-xl border border-gray-700">
+      <div className="flex justify-between items-start mb-6">
+        <h3 className="text-2xl font-bold">
+          Trade Analysis: <span className="text-blue-400">{option?.ticker || 'N/A'}</span>
+        </h3>
+        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+          confidence === 'High' || confidence === 'Very High'
+            ? 'bg-green-900/50 text-green-300'
+            : confidence === 'Medium'
+              ? 'bg-yellow-900/50 text-yellow-300'
+              : 'bg-red-900/50 text-red-300'
+        }`}>
+          Confidence: {confidence}
+        </span>
+      </div>
 
-          <ListGroup.Item><strong>📈 Stock Price:</strong> {typeof entryPrice === 'number' ? `$${entryPrice.toFixed(2)}` : 'N/A'}</ListGroup.Item>
-          <ListGroup.Item><strong>📍 Entry Price:</strong> {typeof entryPrice === 'number' ? `$${entryPrice.toFixed(2)}` : 'N/A'}</ListGroup.Item>
-          <ListGroup.Item>
-            <strong>🎯 Target Price:</strong>{' '}
-            {typeof targetPrice === 'number'
-              ? `$${targetPrice.toFixed(2)}`
-              : fallbackTarget}
-          </ListGroup.Item>
-          <ListGroup.Item>
-            <strong>🛑 Stop Loss:</strong>{' '}
-            {typeof stopLoss === 'number'
-              ? `$${stopLoss.toFixed(2)}`
-              : fallbackStop}
-          </ListGroup.Item>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="bg-gray-700/50 rounded-lg p-4">
+          <h4 className="font-semibold text-lg mb-2">Recommendation</h4>
+         <div
+  className={`text-2xl font-bold ${
+    recommendationDirection?.toLowerCase() === 'call'
+      ? 'text-green-400'
+      : recommendationDirection?.toLowerCase() === 'put'
+        ? 'text-red-400'
+        : 'text-gray-400'
+  }`}
+>
+  {recommendationDirection?.toUpperCase() || 'N/A'}
+</div>
 
-          <ListGroup.Item><strong>📊 RSI:</strong> {typeof rsi === 'number' ? `${rsi.toFixed(2)}` : 'N/A'}</ListGroup.Item>
-          <ListGroup.Item><strong>📉 VWAP:</strong> {typeof vwap === 'number' ? `$${vwap.toFixed(2)}` : 'N/A'}</ListGroup.Item>
-          <ListGroup.Item><strong>📊 MACD Histogram:</strong> {typeof macd?.histogram === 'number' ? `${macd.histogram.toFixed(2)}` : 'N/A'}</ListGroup.Item>
+        </div>
+        <div className="bg-gray-700/50 rounded-lg p-4">
+          <h4 className="font-semibold text-lg mb-2">Sentiment</h4>
+          <div className="text-xl font-medium">{sentimentSummary || 'N/A'}</div>
+        </div>
+      </div>
 
-          {option && (
-            <>
-              <ListGroup.Item><strong>🧾 Ticker Symbol:</strong> {getUnderlyingSymbol(option?.ticker)}</ListGroup.Item>
-              <ListGroup.Item><strong>🎟️ Option Contract:</strong> {option?.ticker}</ListGroup.Item>
-              <ListGroup.Item><strong>📌 Strike Price:</strong> ${option?.strike_price}</ListGroup.Item>
-              <ListGroup.Item><strong>📆 Option Expiration:</strong> {option?.expiration_date}</ListGroup.Item>
-              <ListGroup.Item><strong>💰 Estimated Cost:</strong> ${option?.midPrice?.toFixed(2) ?? 'N/A'}</ListGroup.Item>
-            </>
-          )}
-        </ListGroup>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div>
+          <h4 className="font-semibold text-lg mb-2">📈 Entry Price</h4>
+          <p>{format(entryPrice)}</p>
+        </div>
+        <div>
+          <h4 className="font-semibold text-lg mb-2">🎯 Target Price</h4>
+          <p>{targetPrice ? format(targetPrice) : fallbackTarget}</p>
+        </div>
+        <div>
+          <h4 className="font-semibold text-lg mb-2">🛑 Stop Loss</h4>
+          <p>{stopLoss ? format(stopLoss) : fallbackStop}</p>
+        </div>
+        <div>
+          <h4 className="font-semibold text-lg mb-2">📊 Break-Even</h4>
+          <p>{format(breakEvenPrice)}</p>
+        </div>
+        <div>
+          <h4 className="font-semibold text-lg mb-2">📆 Expiry</h4>
+          <p>{expiryDate ? new Date(expiryDate).toLocaleDateString() : 'N/A'}</p>
+        </div>
+        <div>
+          <h4 className="font-semibold text-lg mb-2">💹 ROI</h4>
+          <p>{expectedROI ? `${expectedROI}%` : 'N/A'}</p>
+        </div>
+      </div>
 
-        <hr />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div>
+          <h4 className="font-semibold text-lg mb-2">📊 RSI</h4>
+          <p>{indicators?.rsi?.toFixed(2) || 'N/A'}</p>
+        </div>
+        <div>
+          <h4 className="font-semibold text-lg mb-2">💵 VWAP</h4>
+          <p>{indicators?.vwap?.toFixed(2) || 'N/A'}</p>
+        </div>
+        <div>
+          <h4 className="font-semibold text-lg mb-2">📈 MACD Histogram</h4>
+          <p>{indicators?.macd?.histogram?.toFixed(2) || 'N/A'}</p>
+        </div>
+      </div>
 
-        <h6 className="mt-3">🧠 GPT Summary</h6>
-        <p>{gptResponse || 'N/A'}</p>
+      {option && (
+        <div className="mb-6 space-y-2">
+          <h4 className="text-lg font-semibold mb-2">🎟️ Option Details</h4>
+          <p><strong>Type:</strong> {option.contract_type?.toUpperCase() || 'N/A'}</p>
+          <p><strong>Strike:</strong> {format(option.strike_price)}</p>
+          <p><strong>Expires:</strong> {new Date(option.expiration_date).toLocaleDateString()}</p>
+          <p><strong>Cost:</strong> {format(option.ask ? option.ask * 100 : undefined)}</p>
+          <p><strong>Delta:</strong> {option.delta?.toFixed(3) || 'N/A'}</p>
+          <p><strong>Gamma:</strong> {option.gamma?.toFixed(3) || 'N/A'}</p>
+          <p><strong>Theta:</strong> {option.theta?.toFixed(3) || 'N/A'}</p>
+          <p><strong>Vega:</strong> {option.vega?.toFixed(3) || 'N/A'}</p>
+          <p><strong>Open Interest:</strong> {option.open_interest || 'N/A'}</p>
+        </div>
+      )}
 
-        <h6>🗞️ News Sentiment</h6>
-        <p>{sentimentSummary || 'N/A'}</p>
-
-        <h6>🏛️ Congressional Activity</h6>
-        {congressTrades ? (
-          <pre style={{ whiteSpace: 'pre-wrap' }}>
-            {congressTrades.split('\n').map((line, i) =>
-              line.startsWith('Link:') ? (
-                <div key={i}>
-                  🔗 <a href={line.replace('Link: ', '')} target="_blank" rel="noopener noreferrer">{line.replace('Link: ', '')}</a>
-                </div>
-              ) : (
-                <div key={i}>{line}</div>
-              )
-            )}
+      <div className="border-t border-gray-700 pt-6 mt-6 space-y-4">
+        <div>
+          <h4 className="font-semibold text-lg mb-1">🧠 GPT Explanation</h4>
+          <p className="text-gray-300">{gptResponse || 'No explanation available.'}</p>
+        </div>
+        <div>
+          <h4 className="font-semibold text-lg mb-1">🏛️ Congressional Activity</h4>
+          <pre className="bg-gray-900 p-4 rounded text-gray-300 whitespace-pre-wrap text-sm">
+            {congressTrades || 'N/A'}
           </pre>
-        ) : (
-          <p>N/A</p>
-        )}
-      </Card.Body>
-    </Card>
+        </div>
+      </div>
+    </div>
   );
 };
 

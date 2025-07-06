@@ -1,16 +1,20 @@
-// ✅ Import the React core library
+// ✅ Import the React core libraries
 import React from 'react';
-
-// ✅ Import ReactDOM to interact with the real DOM
 import ReactDOM from 'react-dom/client';
 
-// ✅ Import the main App component — the root of your app's UI
+// ✅ Import global Tailwind styles (adjust path if needed)
+import './styles/theme.css'; // or './index.css' if that's your Tailwind file
+
+// ✅ Import the main App component
 import App from './App';
 
-// 📍 Find the root HTML element in public/index.html (typically: <div id="root"></div>)
-const root = ReactDOM.createRoot(document.getElementById('root'));
+// 📍 Get the root DOM node (must match <div id="root"> in index.html)
+const container = document.getElementById('root');
+if (!container) throw new Error('❌ Root element not found');
 
-// 🧠 Render the App component inside a <React.StrictMode> wrapper for development checks
+const root = ReactDOM.createRoot(container);
+
+// 🧠 Render the App with development checks
 root.render(
   <React.StrictMode>
     <App />
