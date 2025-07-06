@@ -96,45 +96,46 @@ const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
 }}
 
     >
-      {/* 🎯 Input Fields */}
-      <div className="row g-4">
-        <div className="col-md-4">
-          <label className="form-label text-light">Stock Ticker Symbol</label>
-          <input
-            type="text"
-            value={tickerInput}
-            onChange={(e) => setTickerInput(e.target.value.toUpperCase())}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTicker(); } }}
-            placeholder="e.g., AAPL"
-            className="form-control bg-dark text-white border-secondary"
-          />
-        </div>
+     {/* 🎯 Input Fields */}
+<div className="row g-4">
+  <div className="col-md-4">
+    <label className="form-label text-light">Stock Ticker Symbol</label>
+    <input
+      type="text"
+      value={tickerInput}
+      onChange={(e) => setTickerInput(e.target.value.toUpperCase())}
+      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTicker(); } }}
+      placeholder="e.g., AAPL"
+      className="form-control bg-dark text-white border-secondary"
+    />
+  </div>
 
-        <div className="col-md-4">
-          <label className="form-label text-light">Available Capital ($)</label>
-          <input
-            type="number"
-            min="0"
-            value={capital}
-            onChange={(e) => setCapital(e.target.value)}
-            placeholder="e.g., 5000"
-            className="form-control bg-dark text-white border-secondary"
-          />
-        </div>
+  <div className="col-md-4">
+    <label className="form-label text-light">Available Capital ($)</label>
+    <input
+      type="number"
+      min="0"
+      value={capital}
+      onChange={(e) => setCapital(e.target.value)}
+      placeholder="e.g., 1000"
+      className="form-control bg-dark text-white border-secondary"
+    />
+  </div>
 
-        <div className="col-md-4">
-          <label className="form-label text-light">Risk Tolerance</label>
-          <select
-            value={riskTolerance}
-            onChange={(e) => setRiskTolerance(e.target.value as RiskLevel)}
-            className="form-select bg-dark text-white border-secondary"
-          >
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-          </select>
-        </div>
-      </div>
+  <div className="col-md-4">
+    <label className="form-label text-light">Risk Tolerance</label>
+    <select
+      value={riskTolerance}
+      onChange={(e) => setRiskTolerance(e.target.value as RiskLevel)}
+      className="form-select bg-dark text-white border-secondary"
+    >
+      <option value="low">Low</option>
+      <option value="medium">Medium</option>
+      <option value="high">High</option>
+    </select>
+  </div>
+</div>
+
 
       {/* 🏷️ Selected Tickers */}
       {tickers.length > 0 && (

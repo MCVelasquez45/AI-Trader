@@ -52,3 +52,8 @@
   animation: pulseGlow 8s ease-in-out infinite;
   z-index: 0;
 }
+/* Improve placeholder visibility on dark backgrounds */
+::placeholder {
+  color: #adb5bd !important; /* light gray */
+  opacity: 1;
+}
