@@ -23,52 +23,63 @@ const Dashboard: React.FC = () => {
   const [showHistory, setShowHistory] = useState<boolean>(false);
 
   // 🚀 Handles the core analysis logic
-  const handleAnalyze = async (tickers: string[], capital: number, riskTolerance: string) => {
-    console.log('📱 Submitting tickers to backend:', tickers);
-    console.log('💰 Capital:', capital, '| 🧠 Risk:', riskTolerance);
-    setLoading(true);
-    setUnaffordableTickers([]);
+// 🚀 Handles the core analysis logic
+const handleAnalyze = async (tickers: string[], capital: number, riskTolerance: string) => {
+  console.log('📱 Submitting tickers to backend:', tickers);
+  console.log('💰 Capital:', capital, '| 🧠 Risk:', riskTolerance);
+  setLoading(true);
+  setUnaffordableTickers([]);
 
-    try {
-      const result = await analyzeTrade({ watchlist: tickers, capital, riskTolerance });
+  try {
+    const result = await analyzeTrade({ watchlist: tickers, capital, riskTolerance });
 
-      if (!result || result.error) {
-        alert(`❌ Backend error: ${result?.error || 'Unknown failure'}`);
-        console.error('❌ analyzeTrade error:', result);
-        setLoading(false);
-        return;
-      }
-
-      const unaffordable = result.errors || [];
-      if (unaffordable.length > 0) {
-        console.warn('⚠️ Unaffordable tickers:', unaffordable);
-        setUnaffordableTickers(unaffordable.map((e: any) => `- ${e.ticker || 'Unknown'}: ${e.error}`));
-      }
-
-      if (!result?.recommendations?.length) {
-        console.log('ℹ️ No recommendations returned');
-        setAnalysisData({});
-        setActiveTicker(null);
-        return;
-      }
-
-      const updatedAnalysis: Record<string, AnalysisData> = {};
-      for (const trade of result.recommendations) {
-        const ticker = trade.tickers?.[0] || 'Unknown';
-        updatedAnalysis[ticker] = trade;
-      }
-
-      setAnalysisData(updatedAnalysis);
-      setActiveTicker(result.recommendations[0]?.tickers[0]);
-      console.log('✅ Analysis complete. Active:', result.recommendations[0]?.tickers[0]);
-    } catch (err: any) {
-      const msg = err.response?.data?.error || err.message || 'Unknown error';
-      alert(`❌ Failed to analyze trade: ${msg}`);
-      console.error('❌ Error analyzing:', err.response?.data || err.message || err);
-    } finally {
+    if (!result || result.error) {
+      alert(`❌ Backend error: ${result?.error || 'Unknown failure'}`);
+      console.error('❌ analyzeTrade error:', result);
       setLoading(false);
+      return;
     }
-  };
+
+    const unaffordable = result.errors || [];
+    if (unaffordable.length > 0) {
+      console.warn('⚠️ Unaffordable tickers:', unaffordable);
+      setUnaffordableTickers(
+        unaffordable.map((e: any) => `- ${e.ticker || 'Unknown'}: ${e.error}`)
+      );
+    }
+
+    if (!result?.recommendations?.length) {
+      console.log('ℹ️ No recommendations returned');
+      setAnalysisData({});
+      setActiveTicker(null);
+      return;
+    }
+
+    // ✅ Flatten backend structure to match RecommendationPanel
+    const updatedAnalysis: Record<string, AnalysisData> = {};
+    for (const trade of result.recommendations) {
+      const ticker = trade.ticker || trade.tickers?.[0] || 'Unknown';
+
+      updatedAnalysis[ticker] = {
+        ...trade.recommendation,
+        option: trade.option,
+        ticker,
+      };
+    }
+
+    const firstTicker = result.recommendations[0]?.ticker || result.recommendations[0]?.tickers?.[0];
+    setAnalysisData(updatedAnalysis);
+    setActiveTicker(firstTicker);
+    console.log('✅ Analysis complete. Active:', firstTicker);
+  } catch (err: any) {
+    const msg = err.response?.data?.error || err.message || 'Unknown error';
+    alert(`❌ Failed to analyze trade: ${msg}`);
+    console.error('❌ Error analyzing:', err.response?.data || err.message || err);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // 📦 Render UI
   return (

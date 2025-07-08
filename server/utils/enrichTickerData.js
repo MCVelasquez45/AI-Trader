@@ -1,7 +1,7 @@
 // ✅ File: utils/enrichTickerData.js
 
+// 📦 Imports
 import getStockPrice from './getStockPrice.js';
-import { getAffordableOptionContracts } from './getAffordableOptionContracts.js';
 import getNewsSentiment from './getNewsSentiment.js';
 import getCongressTrades from './getCongressTrades.js';
 import getMinuteCandles from './getMinuteCandles.js';
@@ -10,26 +10,21 @@ import calculateIndicators from './calculateIndicators.js';
 /**
  * 🧠 Enriches ticker data with all required analysis components:
  * - Real-time stock price
- * - Affordable option contracts
+ * - Option contract (provided by client)
  * - News sentiment analysis
  * - Congressional trade activity
  * - Technical indicators (RSI, MACD, VWAP)
- * 
- * @param {Object} params
- * @param {string} params.ticker - Stock symbol to analyze
- * @param {number} params.capital - User's available capital
- * @param {string} [params.riskTolerance='medium'] - Risk profile (low/medium/high)
- * @param {string} [params.contractType='call'] - Option type to consider
- * @returns {Promise<Object|null>} Enriched data object or null if validation fails
  */
 export const enrichTickerData = async ({
   ticker,
   capital,
   riskTolerance = 'medium',
-  contractType = 'call'
+  contractType = 'call',
+  clientContract = null // ✅ Must be passed in from frontend; backend no longer performs contract lookup
 }) => {
   console.log(`\n🔬 [enrichTickerData] STARTING ENRICHMENT FOR: ${ticker.toUpperCase()}`);
   console.log(`📥 Input Parameters — Capital: $${capital}, Risk: ${riskTolerance}, Option Type: ${contractType}`);
+  if (clientContract) console.log(`🧾 Client-provided contract included: ${clientContract.ticker}`);
 
   // ========================
   // 🛡️ 1. INPUT VALIDATION
@@ -38,54 +33,29 @@ export const enrichTickerData = async ({
     console.error('❌ CRITICAL: Invalid ticker - must be non-empty string');
     return null;
   }
+
   if (!capital || isNaN(capital) || capital <= 0) {
-    console.error(`❌ CRITICAL: Invalid capital $${capital} - must be positive number`);
+    console.error(`❌ CRITICAL: Invalid capital $${capital} - must be a positive number`);
     return null;
   }
 
-  // ========================
-  // 💹 2. STOCK PRICE FETCH
-  // ========================
-  console.log(`\n💰 [PHASE 1] Fetching real-time price for ${ticker}...`);
-  const stockPrice = await getStockPrice(ticker);
-  if (!stockPrice) {
-    console.warn(`⚠️ ABORTING: Could not retrieve stock price for ${ticker}`);
-    return null;
-  }
-  console.log(`✅ REAL-TIME PRICE: $${stockPrice}`);
+  // ===================================
+  // 📑 2. VALIDATE CLIENT CONTRACT
+  // ===================================
+  const isValidContract = clientContract &&
+    typeof clientContract.ticker === 'string' &&
+    typeof clientContract.strike_price === 'number' &&
+    typeof clientContract.ask === 'number' &&
+    typeof clientContract.expiration_date === 'string' &&
+    typeof clientContract.contract_type === 'string';
 
-  // ======================================
-  // 📑 3. OPTION CONTRACTS IDENTIFICATION
-  // ======================================
-  console.log(`\n📑 [PHASE 2] Finding affordable ${contractType.toUpperCase()} contracts...`);
-  const {
-    contracts,
-    cheapestUnaffordable,
-    closestITM
-  } = await getAffordableOptionContracts({
-    ticker,
-    capital,
-    riskTolerance,
-    contractType
-  });
-
-  // Select best available contract (prioritize ITM then first affordable)
-  const itmContract = closestITM || contracts?.[0] || null;
-
-  // Validate contract has required fields
-  const contractValid = itmContract && 
-    typeof itmContract.ask === 'number' && 
-    typeof itmContract.strike_price === 'number';
-
-  if (!contractValid) {
-    console.warn(`⛔ NO VALID CONTRACTS: Skipping ${ticker} enrichment`);
-    if (cheapestUnaffordable) {
-      console.log(`ℹ️ Closest unaffordable contract: ${cheapestUnaffordable.ticker} ≈ $${(cheapestUnaffordable.midPrice * 100).toFixed(2)}`);
-    }
+  if (!isValidContract) {
+    console.error(`❌ ERROR: Invalid or missing client contract. enrichTickerData requires a fully structured contract.`);
     return null;
   }
 
-  console.log(`🎯 SELECTED CONTRACT: ${itmContract.ticker}`);
+  const itmContract = clientContract;
+  console.log(`✅ Using client-provided contract: ${itmContract.ticker}`);
   console.log(`📝 CONTRACT DETAILS:`, {
     ask: itmContract.ask,
     bid: itmContract.bid,
@@ -96,6 +66,17 @@ export const enrichTickerData = async ({
     oi: itmContract.open_interest
   });
 
+  // ========================
+  // 💹 3. FETCH STOCK PRICE
+  // ========================
+  console.log(`\n💰 [PHASE 1] Fetching real-time price for ${ticker}...`);
+  const stockPrice = await getStockPrice(ticker);
+  if (!stockPrice) {
+    console.warn(`⚠️ ABORTING: Could not retrieve stock price for ${ticker}`);
+    return null;
+  }
+  console.log(`✅ REAL-TIME PRICE: $${stockPrice}`);
+
   // =============================
   // 📰 4. NEWS SENTIMENT ANALYSIS
   // =============================
@@ -104,38 +85,34 @@ export const enrichTickerData = async ({
   console.log(`✅ NEWS HEADLINES:\n${sentiment.replace(/- /g, '  - ')}`);
 
   // ================================
-// 🏛️ 5. CONGRESSIONAL TRADE DATA
-// ================================
-console.log(`\n🏛️ [PHASE 4] Checking congressional trades for ${ticker}...`);
-const rawCongress = await getCongressTrades(ticker);
-console.log(`✅ CONGRESSIONAL TRADES FETCHED: ${rawCongress.length} records found. LINE 111 ENRICHTICKERDATA.JS`);
+  // 🏛️ 5. CONGRESSIONAL TRADE DATA
+  // ================================
+  console.log(`\n🏛️ [PHASE 4] Checking congressional trades for ${ticker}...`);
+  const rawCongress = await getCongressTrades(ticker);
+  console.log(`✅ CONGRESSIONAL TRADES FETCHED: ${rawCongress.length} records found.`);
 
-let congressSummary = 'No recent congressional trades found.';
-let congressDataForLog = []; // For detailed logging
+  let congressSummary = 'No recent congressional trades found.';
+  let congressDataForLog = [];
 
-if (Array.isArray(rawCongress) && rawCongress.length > 0) {
-  console.log(`📍 FOUND ${rawCongress.length} CONGRESSIONAL TRADES:`);
-  
-  // Format for GPT
-  congressSummary = rawCongress.map(trade => {
-    const { representative = 'Unknown', type = 'N/A', amount = '???', date = '??', link = '#' } = trade;
-    return `• ${representative} ${type.toUpperCase()} (${amount}) on ${date}\n🔗 ${link}`;
-  }).join('\n\n');
-  
-  // Store for detailed logging
-  congressDataForLog = rawCongress;
-}
+  if (Array.isArray(rawCongress) && rawCongress.length > 0) {
+    congressSummary = rawCongress.map(trade => {
+      const { representative = 'Unknown', type = 'N/A', amount = '???', date = '??', link = '#' } = trade;
+      return `• ${representative} ${type.toUpperCase()} (${amount}) on ${date}\n🔗 ${link}`;
+    }).join('\n\n');
 
-// Log congressional data details
-console.log(`🏛️ CONGRESSIONAL TRADES DETAILS:`, congressDataForLog);
-console.log(`📝 CONGRESS SUMMARY FOR GPT:\n${congressSummary}`);
+    congressDataForLog = rawCongress;
+  }
+
+  console.log(`🏛️ CONGRESSIONAL TRADES DETAILS:`, congressDataForLog);
+  console.log(`📝 CONGRESS SUMMARY FOR GPT:\n${congressSummary}`);
+
   // =================================
   // 📊 6. TECHNICAL INDICATOR ANALYSIS
   // =================================
   console.log(`\n📊 [PHASE 5] Calculating technical indicators...`);
   const candles = await getMinuteCandles(ticker);
   const indicators = calculateIndicators(candles);
-  
+
   console.log('✅ TECHNICAL INDICATORS CALCULATED:');
   console.log(`  RSI: ${indicators.rsi ?? 'N/A'}`);
   console.log(`  VWAP: ${indicators.vwap ?? 'N/A'}`);
@@ -148,28 +125,21 @@ console.log(`📝 CONGRESS SUMMARY FOR GPT:\n${congressSummary}`);
   }
 
   // ========================
-  // ✅ 7. FINAL ENRICHMENT
+  // ✅ 7. FINAL RESULT
   // ========================
   console.log(`\n✅ [ENRICHMENT COMPLETE] Assembling final data for ${ticker}`);
-  
-// ✅ Enrichment Complete
-const result = {
-  ticker,
-  stockPrice,
-  capital,
-  contract: itmContract,  // ✅ use contract instead of closestITM
-  sentiment,
-  congress: congressSummary,
-  indicators
-};
+  const result = {
+    ticker,
+    stockPrice,
+    capital,
+    contract: itmContract,
+    sentiment,
+    congress: congressSummary,
+    indicators
+  };
 
+  console.log(`📦 FINAL ENRICHED DATA STRUCTURE:`);
+  console.log(JSON.stringify({ ...result, contract: result.contract }, null, 2));
 
-console.log(`✅ [ENRICHMENT COMPLETE] Assembling final data for ${ticker}`);
-console.log(`📦 FINAL ENRICHED DATA STRUCTURE:`);
-console.log(JSON.stringify({
-  ...result,
-  contract: result.contract // Explicitly log contract
-}, null, 2));
-
-return result;
+  return result;
 };

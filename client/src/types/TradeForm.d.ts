@@ -1,3 +1,8 @@
+// ✅ File: types/OptionContract.ts
+
+/**
+ * 🧾 Represents a single option contract returned from validation or enrichment.
+ */
 export interface OptionContract {
   ticker: string;
   ask: number;
@@ -5,20 +10,25 @@ export interface OptionContract {
   strike_price: number;
   expiration_date: string;
   delta: number;
-  iv?: number;
+  gamma?: number;
+  theta?: number;
+  vega?: number;
+  implied_volatility?: number;
+  iv?: number; // sometimes returned as shorthand
   midPrice?: number;
   openInterest?: number;
-  contractType?: string;
+  contractType?: string; // "call" or "put"
 }
 
-export interface ClosestITMContract {
-  ticker: string;
-  ask: number;
-  strike_price: number;
-  expiration_date: string;
-  delta: number;
-}
+/**
+ * ✅ ClosestITMContract inherits from OptionContract
+ * Ensures validatedContracts remain compatible with OptionContract map.
+ */
+export interface ClosestITMContract extends OptionContract {}
 
+/**
+ * ✅ Result shape returned from validateTicker()
+ */
 export interface ValidateTickerResponse {
   valid: boolean;
   message?: string;

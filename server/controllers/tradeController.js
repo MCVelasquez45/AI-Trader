@@ -8,7 +8,10 @@ dotenv.config();
 import { getGptRecommendation } from '../utils/openaiAssistant.js';
 import { enrichTickerData } from '../utils/enrichTickerData.js';
 import TradeRecommendation from '../models/TradeRecommendation.js';
-
+// 🧠 Validates a single ticker and returns affordable options based on user capital
+// ✅ Import required utilities at the top
+import getStockPrice from '../utils/getStockPrice.js'; // 🔍 Fetches real-time stock price
+import { getAffordableOptionContracts } from '../utils/getAffordableOptionContracts.js'; // 📦 Filters affordable CALL options
 
 
 // 🔍 Fetch aggregate (candlestick) data for a single ticker over the past 30 days
@@ -132,24 +135,31 @@ export const validateTradeRequest = (req, res, next) => {
   next();
 };
 
-// 🧠 Validates a single ticker and returns affordable options based on user capital
+
+
+// 🧠 Validates a single ticker and checks affordable options
 export const validateTicker = async (req, res) => {
   const { ticker, capital = 1000, riskTolerance = 'medium' } = req.body;
   const apiKey = process.env.POLYGON_API_KEY;
 
+  // 🧠 Step-by-step logging
   console.log('\n🧠 Validating Ticker & Checking Affordability...');
   console.log(`  📈 Ticker: ${ticker}`);
   console.log(`  💵 Capital: $${capital}`);
   console.log(`  ⚖️ Risk Tolerance: ${riskTolerance}`);
   console.log(`  🔑 API Key Present: ${!!apiKey}`);
 
+  // 🛑 Guard clause — missing ticker
   if (!ticker) {
+    console.warn('⛔ Ticker symbol is missing from request.');
     return res.status(400).json({ valid: false, error: 'Ticker symbol is required.' });
   }
 
   try {
-    // Step 1: Validate ticker
+    // 📉 Step 1: Validate Ticker via Price
     const stockPrice = await getStockPrice(ticker);
+    console.log(`  💹 Fetched Stock Price for ${ticker}: $${stockPrice}`);
+
     if (!stockPrice) {
       console.warn(`❌ Invalid ticker "${ticker}" — No price data`);
       return res.status(404).json({
@@ -161,7 +171,7 @@ export const validateTicker = async (req, res) => {
       });
     }
 
-    // Step 2: Fetch CALL contracts user can afford
+    // 💰 Step 2: Fetch affordable CALL option contracts
     const { contracts, cheapestUnaffordable, closestITM } = await getAffordableOptionContracts({
       ticker,
       capital,
@@ -170,16 +180,16 @@ export const validateTicker = async (req, res) => {
       contractType: 'call'
     });
 
-    // 💡 Log the closest ITM contract
+    console.log(`  📊 Contracts fetched: ${contracts.length}`);
     if (closestITM) {
-      console.log(`🎯 Closest ITM Contract Found: ${closestITM.ticker} | Strike: ${closestITM.strike_price}`);
+      console.log(`  🎯 Closest ITM Contract: ${closestITM.ticker} | Strike: ${closestITM.strike_price} | Ask: ${closestITM.ask}`);
     } else {
-      console.log(`⚠️ No closest ITM found.`);
+      console.log('  ⚠️ No closest ITM contract found.');
     }
 
-    // Edge case: No affordable contracts
+    // ⚠️ Case: No affordable contracts but a fallback exists
     if (!contracts.length && cheapestUnaffordable) {
-      console.log(`📉 No affordable contracts. Returning closest ITM fallback.`);
+      console.log(`  💸 No affordable contracts for $${capital}. Returning closest ITM contract as reference.`);
       return res.status(200).json({
         valid: true,
         message: `No CALL contracts under $${capital}. Closest ITM contract returned.`,
@@ -189,9 +199,9 @@ export const validateTicker = async (req, res) => {
       });
     }
 
-    // No contracts at all
+    // ❌ Case: No contracts at all
     if (!contracts.length && !cheapestUnaffordable) {
-      console.log(`❌ No viable contracts at all for ${ticker}.`);
+      console.warn(`  ❌ No CALL contracts available for ${ticker}`);
       return res.status(200).json({
         valid: true,
         message: `No CALL contracts found for "${ticker}".`,
@@ -201,8 +211,8 @@ export const validateTicker = async (req, res) => {
       });
     }
 
-    // ✅ Success: return all affordable CALL contracts
-    console.log(`✅ ${contracts.length} affordable contracts returned.`);
+    // ✅ Final case: Return affordable contracts
+    console.log(`  ✅ Returning ${contracts.length} affordable CALL contracts.`);
     return res.status(200).json({
       valid: true,
       message: `Found ${contracts.length} affordable CALL contracts.`,
@@ -212,6 +222,7 @@ export const validateTicker = async (req, res) => {
     });
 
   } catch (err) {
+    // 🔥 Top-level error logging
     console.error('🔥 Error during ticker validation:', err.message);
     return res.status(500).json({
       valid: false,
@@ -228,20 +239,20 @@ export const validateTicker = async (req, res) => {
  🧠 ANALYZE TRADE — Main controller for processing trade recommendation
 ============================================================================ */
 // ✅ Controller: analyzeTrade — Main endpoint to generate trade recommendations
-
-
-// ✅ File: controllers/tradeController.js
-
+// ✅ analyzeTrade Controller — Handles trade recommendations end-to-end
 export const analyzeTrade = async (req, res) => {
   try {
     console.log("🚀 [analyzeTrade] CONTROLLER TRIGGERED");
     console.log("📥 Request Body:", JSON.stringify(req.body, null, 2));
 
-    const { capital, riskTolerance, watchlist } = req.body;
+    const {
+      capital,
+      riskTolerance,
+      watchlist,
+      validatedContracts = {} // ✅ Expected as object: { [ticker]: contract }
+    } = req.body;
 
-    // ========================
-    // 🛡️ INPUT VALIDATION
-    // ========================
+    // 🛡️ Input Validation
     if (!capital || !riskTolerance || !Array.isArray(watchlist) || watchlist.length === 0) {
       const errorMsg = "⚠️ Missing required fields: capital, riskTolerance, or watchlist";
       console.warn(errorMsg);
@@ -249,75 +260,82 @@ export const analyzeTrade = async (req, res) => {
     }
 
     const enrichedTickers = [];
-    console.log(`🔁 Processing ${watchlist.length} tickers in watchlist`);
+    console.log(`🔁 Processing ${watchlist.length} ticker(s) in watchlist`);
 
-    // ===========================================
-    // 🔁 PROCESS EACH TICKER IN WATCHLIST
-    // ===========================================
+    // 🔁 Loop through each ticker in the watchlist
     for (const ticker of watchlist) {
       console.log(`\n🔍 [TICKER START] Processing: ${ticker}`);
-      let gptResponse = null; // ✅ Declare outside to avoid ReferenceError
+      let gptResponse = null;
 
       try {
-        // ========================
-        // 📦 1. Enrich Ticker Data
-        // ========================
-        const enrichedData = await enrichTickerData({ ticker, capital, riskTolerance });
+        // 🧾 STEP 0: Extract pre-validated contract from validatedContracts
+        const preselectedContract = validatedContracts[ticker] || null;
+
+        if (preselectedContract) {
+          console.log(`✅ Pre-validated contract found for ${ticker}:`);
+          console.table(preselectedContract);
+        } else {
+          console.warn(`⚠️ No pre-validated contract passed for ${ticker}. Enrichment may fail.`);
+        }
+
+        // 📦 STEP 1: Enrich Ticker Data
+        const enrichedData = await enrichTickerData({
+          ticker,
+          capital,
+          riskTolerance,
+          clientContract: preselectedContract
+        });
+
+        // ⛔ Skip if enrichment fails
         if (!enrichedData) {
-          console.warn(`⛔ SKIPPED: No enrichment data for ${ticker}`);
+          console.warn(`⛔ SKIPPED: No enrichment data returned for ${ticker}`);
           continue;
         }
 
-        // ========================
-        // 🔍 2. Validate Required Fields
-        // ========================
+        // ✅ STEP 2: Validate Enriched Data Fields
         const missing = [];
         if (!enrichedData.stockPrice) missing.push('stockPrice');
         if (!enrichedData.contract) missing.push('contract');
         if (!enrichedData.indicators) missing.push('indicators');
 
         if (missing.length) {
-          console.warn(`⚠️ MISSING FIELDS for ${ticker}:`, missing.join(', '));
+          console.warn(`⚠️ Missing fields for ${ticker}:`, missing.join(', '));
           continue;
         }
 
+        // ⚠️ STEP 2b: Validate Contract Structure
         const contract = enrichedData.contract;
         if (!contract || typeof contract.ask !== 'number' || typeof contract.strike_price !== 'number') {
           console.warn(`⚠️ INVALID CONTRACT STRUCTURE for ${ticker}:`, contract);
           continue;
         }
 
-        // ========================
-        // 🧠 3. Get GPT Recommendation
-        // ========================
+        // 🤖 STEP 3: Generate GPT Recommendation
         try {
-          console.log("🚀 Sending to getGptRecommendation...");
+          console.log("🤖 Sending enriched data to GPT...");
           gptResponse = await getGptRecommendation(enrichedData);
 
           if (!gptResponse || !gptResponse.tradeType || !gptResponse.confidence) {
-            console.error(`❌ GPT Response Invalid for ${ticker}:`, gptResponse);
+            console.error(`❌ GPT returned invalid data for ${ticker}:`, gptResponse);
             continue;
           }
 
-          console.log(`📝 GPT RECOMMENDATION for ${ticker}: ${gptResponse.tradeType} (${gptResponse.confidence})`);
+          console.log(`📝 GPT RECOMMENDATION for ${ticker}: ${gptResponse.tradeType} | Confidence: ${gptResponse.confidence}`);
         } catch (gptErr) {
           console.error(`🔥 GPT ERROR for ${ticker}:`, gptErr.message);
           continue;
         }
 
-        // ========================
-        // 💸 4. Calculate Trade Metrics
-        // ========================
+        // 💸 STEP 4: Financial Metrics
         const estimatedCost = contract.midPrice * 100;
         const breakEvenPrice = contract.contract_type === 'call'
           ? contract.strike_price + contract.ask
           : contract.strike_price - contract.ask;
+
         const expectedROI = ((gptResponse.targetPrice - gptResponse.entryPrice) / gptResponse.entryPrice) * 100;
 
-        // ========================
-        // 💾 5. Save to MongoDB
-        // ========================
-        console.log(`💾 Saving trade recommendation for ${ticker}...`);
+        // 💾 STEP 5: Save Recommendation to MongoDB
+        console.log(`💾 Saving recommendation for ${ticker} to MongoDB...`);
         const newRec = new TradeRecommendation({
           tickers: [ticker],
           capital: enrichedData.capital,
@@ -339,43 +357,45 @@ export const analyzeTrade = async (req, res) => {
         });
 
         await newRec.save();
-        console.log(`✅ SAVED: Trade recommendation for ${ticker}`);
+        console.log(`✅ SAVED to DB: ${ticker}`);
 
-        // ========================
-        // 📦 6. Add to Response Array
-        // ========================
+        // 📦 STEP 6: Add Enriched Result to Final Array
         enrichedTickers.push({
-          ticker,
-          recommendation: gptResponse,
+          tickers: [ticker],
+          capital,
+          riskTolerance,
+          ...gptResponse,
           option: contract
         });
 
       } catch (err) {
-        console.error(`⚠️ ERROR PROCESSING ${ticker}:`, err.message);
+        console.error(`❌ ERROR PROCESSING ${ticker}:`, err.message || err);
         continue;
       }
     }
 
-    // ========================
     // 📮 FINAL RESPONSE
-    // ========================
     if (!enrichedTickers.length) {
       const errorMsg = "⚠️ No valid recommendations generated";
       console.warn(errorMsg);
       return res.status(500).json({ error: errorMsg });
     }
 
-    console.log(`🎉 SUCCESS: ${enrichedTickers.length} trade(s) generated`);
+    console.log(`🎉 SUCCESS: ${enrichedTickers.length} recommendation(s) generated`);
     return res.status(200).json({
       message: "✅ Trade recommendations created",
       recommendations: enrichedTickers
     });
 
   } catch (err) {
-    console.error("🔥 CRITICAL ERROR IN analyzeTrade:", err);
+    console.error("🔥 FATAL ERROR in analyzeTrade:", err.message || err);
     return res.status(500).json({ error: "Server error during trade analysis." });
   }
 };
+
+
+
+
 
 
 
