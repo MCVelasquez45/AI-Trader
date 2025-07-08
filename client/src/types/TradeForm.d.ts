@@ -1,38 +1,26 @@
-// ✅ File: types/OptionContract.ts
+// ✅ File: types/TradeForm.d.ts
+
+import type { OptionContract } from './OptionContract';
 
 /**
- * 🧾 Represents a single option contract returned from validation or enrichment.
+ * 🧪 Type for risk tolerance levels
  */
-export interface OptionContract {
-  ticker: string;
-  ask: number;
-  bid: number;
-  strike_price: number;
-  expiration_date: string;
-  delta: number;
-  gamma?: number;
-  theta?: number;
-  vega?: number;
-  implied_volatility?: number;
-  iv?: number; // sometimes returned as shorthand
-  midPrice?: number;
-  openInterest?: number;
-  contractType?: string; // "call" or "put"
+export type RiskLevel = 'low' | 'medium' | 'high';
+
+/**
+ * ✅ Final result payload passed to Dashboard from TradeForm
+ */
+export interface AnalysisResultPayload {
+  tickers: string[];
+  capital: number;
+  riskTolerance: RiskLevel;
+  validatedContracts: Record<string, OptionContract & { contract_type: string }>;
+  result: any;
 }
 
 /**
- * ✅ ClosestITMContract inherits from OptionContract
- * Ensures validatedContracts remain compatible with OptionContract map.
+ * 🎛️ Props expected by the TradeForm component
  */
-export interface ClosestITMContract extends OptionContract {}
-
-/**
- * ✅ Result shape returned from validateTicker()
- */
-export interface ValidateTickerResponse {
-  valid: boolean;
-  message?: string;
-  stockPrice?: number;
-  contracts?: OptionContract[];
-  closestITM?: ClosestITMContract;
+export interface TradeFormProps {
+  onAnalyze: (payload: AnalysisResultPayload) => void;
 }

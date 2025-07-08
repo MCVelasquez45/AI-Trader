@@ -239,46 +239,46 @@ export const validateTicker = async (req, res) => {
  🧠 ANALYZE TRADE — Main controller for processing trade recommendation
 ============================================================================ */
 // ✅ Controller: analyzeTrade — Main endpoint to generate trade recommendations
-// ✅ analyzeTrade Controller — Handles trade recommendations end-to-end
+// ✅ analyzeTrade — Refined controller with hedge-fund-level tracing and optimizations
 export const analyzeTrade = async (req, res) => {
   try {
-    console.log("🚀 [analyzeTrade] CONTROLLER TRIGGERED");
-    console.log("📥 Request Body:", JSON.stringify(req.body, null, 2));
+    console.log("\n🚀 [analyzeTrade] CONTROLLER TRIGGERED");
+    console.log("📥 Incoming Request Body:", JSON.stringify(req.body, null, 2));
 
     const {
       capital,
       riskTolerance,
       watchlist,
-      validatedContracts = {} // ✅ Expected as object: { [ticker]: contract }
+      validatedContracts = {} // ✅ Expecting format: { [ticker]: contract }
     } = req.body;
 
     // 🛡️ Input Validation
     if (!capital || !riskTolerance || !Array.isArray(watchlist) || watchlist.length === 0) {
-      const errorMsg = "⚠️ Missing required fields: capital, riskTolerance, or watchlist";
+      const errorMsg = "⚠️ Missing capital, riskTolerance, or watchlist[]";
       console.warn(errorMsg);
       return res.status(400).json({ error: errorMsg });
     }
 
+    // 📦 Final response container
     const enrichedTickers = [];
-    console.log(`🔁 Processing ${watchlist.length} ticker(s) in watchlist`);
+    console.log(`🔁 Processing ${watchlist.length} ticker(s)...`);
 
-    // 🔁 Loop through each ticker in the watchlist
+    // 🔁 Main analysis loop
     for (const ticker of watchlist) {
-      console.log(`\n🔍 [TICKER START] Processing: ${ticker}`);
+      console.log(`\n📊 [${ticker}] Starting full analysis pipeline`);
       let gptResponse = null;
 
       try {
-        // 🧾 STEP 0: Extract pre-validated contract from validatedContracts
+        // 🧾 STEP 0: Use pre-validated contract if available
         const preselectedContract = validatedContracts[ticker] || null;
-
         if (preselectedContract) {
-          console.log(`✅ Pre-validated contract found for ${ticker}:`);
+          console.log(`✅ Pre-validated contract used for ${ticker}`);
           console.table(preselectedContract);
         } else {
-          console.warn(`⚠️ No pre-validated contract passed for ${ticker}. Enrichment may fail.`);
+          console.warn(`⚠️ No pre-validated contract provided for ${ticker}`);
         }
 
-        // 📦 STEP 1: Enrich Ticker Data
+        // 🔍 STEP 1: Enrich data (price, contract, sentiment, indicators)
         const enrichedData = await enrichTickerData({
           ticker,
           capital,
@@ -286,47 +286,47 @@ export const analyzeTrade = async (req, res) => {
           clientContract: preselectedContract
         });
 
-        // ⛔ Skip if enrichment fails
+        // ⛔ Skip if enrichment failed
         if (!enrichedData) {
-          console.warn(`⛔ SKIPPED: No enrichment data returned for ${ticker}`);
+          console.warn(`⛔ Skipped ${ticker} — Enrichment returned null`);
           continue;
         }
 
-        // ✅ STEP 2: Validate Enriched Data Fields
+        // ✅ STEP 2: Sanity check for required fields
         const missing = [];
         if (!enrichedData.stockPrice) missing.push('stockPrice');
         if (!enrichedData.contract) missing.push('contract');
         if (!enrichedData.indicators) missing.push('indicators');
 
         if (missing.length) {
-          console.warn(`⚠️ Missing fields for ${ticker}:`, missing.join(', '));
+          console.warn(`⚠️ ${ticker} missing critical fields:`, missing.join(', '));
           continue;
         }
 
-        // ⚠️ STEP 2b: Validate Contract Structure
+        // ⚠️ STEP 2b: Confirm contract integrity
         const contract = enrichedData.contract;
         if (!contract || typeof contract.ask !== 'number' || typeof contract.strike_price !== 'number') {
-          console.warn(`⚠️ INVALID CONTRACT STRUCTURE for ${ticker}:`, contract);
+          console.warn(`⚠️ ${ticker} contract invalid:`, contract);
           continue;
         }
 
-        // 🤖 STEP 3: Generate GPT Recommendation
+        // 🤖 STEP 3: Get GPT-4 Recommendation
         try {
-          console.log("🤖 Sending enriched data to GPT...");
+          console.log("🤖 Sending to GPT for recommendation...");
           gptResponse = await getGptRecommendation(enrichedData);
 
           if (!gptResponse || !gptResponse.tradeType || !gptResponse.confidence) {
-            console.error(`❌ GPT returned invalid data for ${ticker}:`, gptResponse);
+            console.error(`❌ GPT response invalid for ${ticker}:`, gptResponse);
             continue;
           }
 
-          console.log(`📝 GPT RECOMMENDATION for ${ticker}: ${gptResponse.tradeType} | Confidence: ${gptResponse.confidence}`);
+          console.log(`📝 GPT says ${gptResponse.tradeType.toUpperCase()} with ${gptResponse.confidence.toUpperCase()} confidence.`);
         } catch (gptErr) {
-          console.error(`🔥 GPT ERROR for ${ticker}:`, gptErr.message);
+          console.error(`🔥 GPT failed on ${ticker}:`, gptErr.message);
           continue;
         }
 
-        // 💸 STEP 4: Financial Metrics
+        // 💸 STEP 4: Compute financial metrics
         const estimatedCost = contract.midPrice * 100;
         const breakEvenPrice = contract.contract_type === 'call'
           ? contract.strike_price + contract.ask
@@ -334,8 +334,7 @@ export const analyzeTrade = async (req, res) => {
 
         const expectedROI = ((gptResponse.targetPrice - gptResponse.entryPrice) / gptResponse.entryPrice) * 100;
 
-        // 💾 STEP 5: Save Recommendation to MongoDB
-        console.log(`💾 Saving recommendation for ${ticker} to MongoDB...`);
+        // 💾 STEP 5: Save to MongoDB
         const newRec = new TradeRecommendation({
           tickers: [ticker],
           capital: enrichedData.capital,
@@ -350,16 +349,16 @@ export const analyzeTrade = async (req, res) => {
           breakEvenPrice,
           expectedROI,
           option: contract,
-          expiryDate: contract?.expiration_date,
+          expiryDate: contract.expiration_date,
           sentimentSummary: enrichedData.sentiment,
           congressTrades: enrichedData.congress,
           indicators: enrichedData.indicators
         });
 
         await newRec.save();
-        console.log(`✅ SAVED to DB: ${ticker}`);
+        console.log(`✅ Recommendation for ${ticker} saved to MongoDB.`);
 
-        // 📦 STEP 6: Add Enriched Result to Final Array
+        // 📦 STEP 6: Prepare for frontend response
         enrichedTickers.push({
           tickers: [ticker],
           capital,
@@ -369,26 +368,26 @@ export const analyzeTrade = async (req, res) => {
         });
 
       } catch (err) {
-        console.error(`❌ ERROR PROCESSING ${ticker}:`, err.message || err);
+        console.error(`❌ Error processing ${ticker}:`, err.message || err);
         continue;
       }
     }
 
-    // 📮 FINAL RESPONSE
+    // 🚨 Final catch: nothing enriched
     if (!enrichedTickers.length) {
-      const errorMsg = "⚠️ No valid recommendations generated";
-      console.warn(errorMsg);
-      return res.status(500).json({ error: errorMsg });
+      console.warn("⚠️ No successful recommendations returned");
+      return res.status(500).json({ error: "No trade recommendations generated." });
     }
 
-    console.log(`🎉 SUCCESS: ${enrichedTickers.length} recommendation(s) generated`);
+    // 🎉 Return successful recommendations
+    console.log(`🎯 Returning ${enrichedTickers.length} trade recommendations`);
     return res.status(200).json({
       message: "✅ Trade recommendations created",
       recommendations: enrichedTickers
     });
 
   } catch (err) {
-    console.error("🔥 FATAL ERROR in analyzeTrade:", err.message || err);
+    console.error("🔥 Fatal error in analyzeTrade:", err.message || err);
     return res.status(500).json({ error: "Server error during trade analysis." });
   }
 };

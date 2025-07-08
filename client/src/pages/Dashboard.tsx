@@ -5,14 +5,18 @@ import { BsBank, BsBarChartFill, BsChatDotsFill } from 'react-icons/bs';
 // 📦 Import components
 import TradeForm from '../components/TradeForm';
 import RecommendationPanel from '../components/RecommendationPanel';
-// import TradeHistory from '../components/TradeHistory'; // Optional feature
 import TypingDots from '../components/TypingDots';
-
-// 📦 Import API function
-import { analyzeTrade } from '../api/tradeApi';
 
 // 🎯 Use AnalysisData type for trade recommendations
 import type { AnalysisData } from '../types/Analysis';
+
+type AnalysisResultPayload = {
+  tickers: string[];
+  capital: number;
+  riskTolerance: string;
+  validatedContracts: any;
+  result: any;
+};
 
 // 📘 Dashboard Component — Main Page
 const Dashboard: React.FC = () => {
@@ -22,64 +26,68 @@ const Dashboard: React.FC = () => {
   const [unaffordableTickers, setUnaffordableTickers] = useState<string[]>([]);
   const [showHistory, setShowHistory] = useState<boolean>(false);
 
-  // 🚀 Handles the core analysis logic
-// 🚀 Handles the core analysis logic
-const handleAnalyze = async (tickers: string[], capital: number, riskTolerance: string) => {
-  console.log('📱 Submitting tickers to backend:', tickers);
-  console.log('💰 Capital:', capital, '| 🧠 Risk:', riskTolerance);
-  setLoading(true);
-  setUnaffordableTickers([]);
+  // ✅ Called by <TradeForm> with final backend result
+  const handleAnalysisResult = async ({
+    tickers,
+    capital,
+    riskTolerance,
+    result
+  }: AnalysisResultPayload) => {
+    console.log('📬 Received analysis result from <TradeForm>');
+    console.log('📈 Tickers:', tickers);
+    console.log('💰 Capital:', capital);
+    console.log('🧠 Risk Tolerance:', riskTolerance);
+    console.log('🧾 Full Backend Result:', result);
 
-  try {
-    const result = await analyzeTrade({ watchlist: tickers, capital, riskTolerance });
+    setLoading(true);
+    setUnaffordableTickers([]);
 
-    if (!result || result.error) {
-      alert(`❌ Backend error: ${result?.error || 'Unknown failure'}`);
-      console.error('❌ analyzeTrade error:', result);
+    try {
+      if (!result || result.error) {
+        alert(`❌ Backend error: ${result?.error || 'Unknown failure'}`);
+        console.error('❌ analyzeTrade error:', result);
+        return;
+      }
+
+      const unaffordable = result.errors || [];
+      if (unaffordable.length > 0) {
+        console.warn('⚠️ Unaffordable tickers:', unaffordable);
+        setUnaffordableTickers(
+          unaffordable.map((e: any) => `- ${e.ticker || 'Unknown'}: ${e.error}`)
+        );
+      }
+
+      if (!result?.recommendations?.length) {
+        console.log('ℹ️ No recommendations returned');
+        setAnalysisData({});
+        setActiveTicker(null);
+        return;
+      }
+
+      // ✅ Flatten backend structure to match RecommendationPanel
+      const updatedAnalysis: Record<string, AnalysisData> = {};
+      for (const trade of result.recommendations) {
+        const ticker = trade.ticker || trade.tickers?.[0] || 'Unknown';
+
+        updatedAnalysis[ticker] = {
+          ...trade.recommendation,
+          option: trade.option,
+          ticker,
+        };
+      }
+
+      const firstTicker = result.recommendations[0]?.ticker || result.recommendations[0]?.tickers?.[0];
+      setAnalysisData(updatedAnalysis);
+      setActiveTicker(firstTicker);
+      console.log('✅ Analysis complete. Active Ticker:', firstTicker);
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.message || 'Unknown error';
+      alert(`❌ Failed to process analysis result: ${msg}`);
+      console.error('❌ Error processing result:', err.response?.data || err.message || err);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const unaffordable = result.errors || [];
-    if (unaffordable.length > 0) {
-      console.warn('⚠️ Unaffordable tickers:', unaffordable);
-      setUnaffordableTickers(
-        unaffordable.map((e: any) => `- ${e.ticker || 'Unknown'}: ${e.error}`)
-      );
-    }
-
-    if (!result?.recommendations?.length) {
-      console.log('ℹ️ No recommendations returned');
-      setAnalysisData({});
-      setActiveTicker(null);
-      return;
-    }
-
-    // ✅ Flatten backend structure to match RecommendationPanel
-    const updatedAnalysis: Record<string, AnalysisData> = {};
-    for (const trade of result.recommendations) {
-      const ticker = trade.ticker || trade.tickers?.[0] || 'Unknown';
-
-      updatedAnalysis[ticker] = {
-        ...trade.recommendation,
-        option: trade.option,
-        ticker,
-      };
-    }
-
-    const firstTicker = result.recommendations[0]?.ticker || result.recommendations[0]?.tickers?.[0];
-    setAnalysisData(updatedAnalysis);
-    setActiveTicker(firstTicker);
-    console.log('✅ Analysis complete. Active:', firstTicker);
-  } catch (err: any) {
-    const msg = err.response?.data?.error || err.message || 'Unknown error';
-    alert(`❌ Failed to analyze trade: ${msg}`);
-    console.error('❌ Error analyzing:', err.response?.data || err.message || err);
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   // 📦 Render UI
   return (
@@ -109,7 +117,7 @@ const handleAnalyze = async (tickers: string[], capital: number, riskTolerance: 
 
           {/* 📾 Trade Form */}
           <div className="bg-opacity-75 rounded p-4 shadow border border-dark mb-4">
-            <TradeForm onAnalyze={handleAnalyze} />
+            <TradeForm onAnalyze={handleAnalysisResult} />
           </div>
 
           {/* ⏳ Loading State */}
@@ -137,8 +145,6 @@ const handleAnalyze = async (tickers: string[], capital: number, riskTolerance: 
               <p className="text-gray-400">Enter your details above to get started with your options trade analysis.</p>
             </div>
           )}
-
-
 
           {/* ✅ Analysis Result Panel */}
           {activeTicker && !loading && (
@@ -172,7 +178,6 @@ const handleAnalyze = async (tickers: string[], capital: number, riskTolerance: 
               ))}
             </div>
           </section>
-
 
           {/* 🚀 Call To Action Section */}
           <section className="mt-5 text-center py-5 rounded border border-secondary" style={{ background: 'linear-gradient(to right, rgba(0, 123, 255, 0.1), rgba(138, 43, 226, 0.1))' }}>
@@ -211,5 +216,4 @@ const handleAnalyze = async (tickers: string[], capital: number, riskTolerance: 
   );
 };
 
-// ✅ Export the Dashboard component
 export default Dashboard;

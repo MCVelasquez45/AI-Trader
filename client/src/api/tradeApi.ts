@@ -1,5 +1,6 @@
 import axios from 'axios';
-import type { RiskLevel, ValidateTickerResponse } from '../types/TradeForm';
+import type { RiskLevel} from '../types/TradeForm';
+import type { ValidateTickerResponse } from '../types/OptionContract';
 
 // 🌍 Automatically set API base URL depending on environment
 const API_BASE = import.meta.env.DEV

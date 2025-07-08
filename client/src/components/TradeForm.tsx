@@ -4,57 +4,44 @@ import React, { useState } from 'react';
 import { analyzeTrade, validateTicker } from '../api/tradeApi';
 import { useContractContext } from '../contexts/ContractContext';
 import type { RiskLevel, TradeFormProps } from '../types/TradeForm';
+import type { OptionContract } from '../types/OptionContract';
 
 const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
-  // 🔢 Local input state
   const [tickerInput, setTickerInput] = useState('');
   const [capital, setCapital] = useState('');
   const [riskTolerance, setRiskTolerance] = useState<RiskLevel>('medium');
   const [tickers, setTickers] = useState<string[]>([]);
 
-  // 🔐 Global context: stores pre-validated contracts
   const { validatedContracts, setValidatedContracts } = useContractContext();
 
-  // 🔔 UI feedback state
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [validationResult, setValidationResult] = useState<any>(null);
 
-  console.log('📦 Loaded contract context inside <TradeForm>:');
-  console.table(validatedContracts);
-
-  // ✅ Adds a ticker and stores its closest ITM contract
+  // ✅ Add ticker and validate
   const addTicker = async () => {
     const symbol = tickerInput.trim().toUpperCase();
     if (!symbol || tickers.includes(symbol)) return;
 
-    console.log('🔍 Validating ticker:', symbol);
     const result = await validateTicker(symbol, parseFloat(capital), riskTolerance);
-    console.log('📬 Validation result:', result);
-
     if (!result?.valid || !result.closestITM) {
       setError(result?.message || `Invalid ticker: ${symbol}`);
       setValidationResult(result);
       return;
     }
 
-    // 🧠 Add to context
     const closestITM = result.closestITM;
     if (!closestITM) return;
 
-    setValidatedContracts(prev => ({
-      ...prev,
-      [symbol]: closestITM
-    }));
-
+    setValidatedContracts(prev => ({ ...prev, [symbol]: closestITM }));
     setTickers(prev => [...prev, symbol]);
     setTickerInput('');
     setError('');
     setValidationResult(result);
   };
 
-  // ❌ Removes ticker and contract from UI and context
+  // ❌ Remove ticker
   const removeTicker = (ticker: string) => {
     setTickers(prev => prev.filter(t => t !== ticker));
     setValidatedContracts(prev => {
@@ -62,10 +49,9 @@ const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
       delete updated[ticker];
       return updated;
     });
-    console.log(`❌ Removed ticker: ${ticker}`);
   };
 
-  // 🚀 Final submit to backend
+  // 🚀 Final submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -80,11 +66,10 @@ const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
       return;
     }
 
-    // 🧠 Build temporary validated contract mirror
     const localContracts = { ...validatedContracts };
     let currentTickers = [...tickers];
 
-    // 🧪 Final validation if user typed symbol before submit
+    // Auto-validate current input if user forgot to add it
     if (tickerInput.trim()) {
       const symbol = tickerInput.trim().toUpperCase();
       if (!tickers.includes(symbol)) {
@@ -98,14 +83,9 @@ const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
         const closestITM = result.closestITM;
         if (!closestITM) return;
 
-        // ✅ Update local and global state
         currentTickers.push(symbol);
         localContracts[symbol] = closestITM;
-        setValidatedContracts(prev => ({
-          ...prev,
-          [symbol]: closestITM
-        }));
-
+        setValidatedContracts(prev => ({ ...prev, [symbol]: closestITM }));
         setTickers(currentTickers);
         setValidationResult(result);
       }
@@ -118,26 +98,27 @@ const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
       return;
     }
 
-    // 🧠 Build payload only from tickers with validated contracts
     const contractsSnapshot = currentTickers.reduce((acc, symbol) => {
-      if (localContracts[symbol]) {
-        acc[symbol] = localContracts[symbol];
-      } else {
-        console.warn(`⚠️ No validated contract found for ${symbol}`);
+      const contract = localContracts[symbol];
+      if (contract) {
+        const typed = contract as OptionContract;
+        acc[symbol] = {
+          ...typed,
+          contract_type: typed.contract_type || typed.contractType || 'call'
+        };
       }
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, OptionContract & { contract_type: string }>);
 
-    console.log('🧠 FINAL PAYLOAD TO analyzeTrade():');
-    console.log(JSON.stringify({
-      watchlist: currentTickers,
+    console.log('🧠 FINAL PAYLOAD TO analyzeTrade():', {
+      tickers: currentTickers,
       capital: numericCapital,
       riskTolerance,
       validatedContracts: contractsSnapshot
-    }, null, 2));
+    });
 
     try {
-      await analyzeTrade({
+      const result = await analyzeTrade({
         watchlist: currentTickers,
         tickers: currentTickers,
         capital: numericCapital,
@@ -146,8 +127,16 @@ const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
       });
 
       console.log('✅ Trade analysis complete.');
-      onAnalyze(currentTickers, numericCapital, riskTolerance);
       setSuccessMsg('✅ Trade successfully analyzed.');
+
+      // ✅ Pass the full payload to Dashboard
+      onAnalyze({
+        tickers: currentTickers,
+        capital: numericCapital,
+        riskTolerance,
+        validatedContracts: contractsSnapshot,
+        result
+      });
     } catch (err: any) {
       const msg = err?.error || '❌ Error analyzing trade.';
       setError(msg);
@@ -161,7 +150,7 @@ const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
     <form onSubmit={handleSubmit} className="rounded p-4 shadow border border-gray-700 mb-5"
       style={{ background: 'linear-gradient(to bottom right, #0f172a, #222936)', backdropFilter: 'blur(4px)' }}
     >
-      {/* 🎛️ Inputs */}
+      {/* Inputs */}
       <div className="row g-4">
         <div className="col-md-4">
           <label className="form-label text-light">Stock Ticker Symbol</label>
@@ -199,7 +188,7 @@ const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
         </div>
       </div>
 
-      {/* 🎯 Selected Tickers */}
+      {/* Selected tickers */}
       {tickers.length > 0 && (
         <div className="mt-3 d-flex flex-wrap gap-2">
           {tickers.map((ticker) => (
@@ -215,7 +204,7 @@ const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
         </div>
       )}
 
-      {/* ⚠️ Capital Warning */}
+      {/* Capital Warning */}
       {validationResult?.contracts?.length === 0 && validationResult?.closestITM && (
         <div className="alert alert-warning mt-3">
           Closest ITM contract is <strong>${validationResult.closestITM.ask.toFixed(2)}</strong>, 
@@ -223,11 +212,11 @@ const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
         </div>
       )}
 
-      {/* ❗ Errors & Success */}
+      {/* Alerts */}
       {error && <div className="alert alert-danger mt-3">{error}</div>}
       {successMsg && <div className="alert alert-success mt-3">{successMsg}</div>}
 
-      {/* 🧾 Validated Contracts */}
+      {/* Validated Contracts */}
       {Object.entries(validatedContracts).length > 0 && (
         <div className="alert alert-info mt-3">
           <strong>🧾 Validated Contracts:</strong>
@@ -241,7 +230,7 @@ const TradeForm: React.FC<TradeFormProps> = ({ onAnalyze }) => {
         </div>
       )}
 
-      {/* 🚀 Submit Button */}
+      {/* Submit */}
       <button
         type="submit"
         disabled={loading}
