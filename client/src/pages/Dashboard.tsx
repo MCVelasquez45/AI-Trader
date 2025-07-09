@@ -66,36 +66,45 @@ const Dashboard: React.FC = () => {
 
       // ✅ Flatten backend structure to match RecommendationPanel
       const updatedAnalysis: Record<string, AnalysisData> = {};
-      for (const trade of result.recommendations) {
-        const details = trade.analysis || trade;
+     for (const trade of result.recommendations) {
+  const details = trade.analysis || trade;
 
-        let rawTicker =
-          details.ticker ||
-          details.tickers?.[0] ||
-          (details.option?.ticker?.includes(':') ? details.option.ticker.split(':')[1].substring(0, 4) : null) ||
-          'UNKNOWN';
+  if (!details || typeof details !== 'object' || !details.option || !details.entryPrice) {
+    console.warn(`⚠️ Skipping malformed trade payload:`, trade);
+    continue;
+  }
 
-        const ticker = rawTicker.toUpperCase();
+  let rawTicker =
+    details.ticker ||
+    details.tickers?.[0] ||
+    (details.option?.ticker?.includes(':') ? details.option.ticker.split(':')[1].substring(0, 4) : null) ||
+    'UNKNOWN';
 
-        updatedAnalysis[ticker] = {
-          ticker,
-          option: details.option,
-          recommendationDirection: details.tradeType || details.recommendationDirection,
-          confidence: details.confidence,
-          entryPrice: details.entryPrice,
-          targetPrice: details.targetPrice,
-          stopLoss: details.stopLoss,
-          gptResponse: details.analysis || details.gptResponse,
-          sentimentSummary: details.sentimentSummary || details.sentiment,
-          congressTrades: details.congressTrades || details.congress,
-          breakEvenPrice: details.breakEvenPrice,
-          expectedROI: details.expectedROI,
-          indicators: details.indicators,
-          expiryDate: details.option?.expiration_date
-        };
+  const ticker = rawTicker.toUpperCase();
 
-        console.log(`✅ [${ticker}] Final Mapped Analysis:`, updatedAnalysis[ticker]);
-      }
+  updatedAnalysis[ticker] = {
+    ticker,
+    option: details.option,
+    recommendationDirection: details.tradeType || details.recommendationDirection,
+    confidence: details.confidence,
+    entryPrice: details.entryPrice,
+    targetPrice: details.targetPrice,
+    stopLoss: details.stopLoss,
+    gptResponse: details.gptResponse || details.analysis,
+    sentimentSummary: details.sentimentSummary || details.sentiment || 'N/A',
+    congressTrades: details.congressTrades || details.congress || 'N/A',
+    breakEvenPrice: details.breakEvenPrice ?? 'N/A',
+    expectedROI: details.expectedROI ?? 'N/A',
+    indicators: details.indicators ?? {
+      rsi: null,
+      macd: { histogram: null },
+      vwap: null
+    },
+    expiryDate: details.option?.expiration_date
+  };
+
+  console.log(`✅ [${ticker}] Final Mapped Analysis:`, updatedAnalysis[ticker]);
+}
 
 
       const firstTicker = result.recommendations[0]?.ticker || result.recommendations[0]?.tickers?.[0];
