@@ -1,5 +1,4 @@
-// 📦 Import dependencies
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AnalysisData } from '../types/Analysis';
 
 interface Props {
@@ -9,7 +8,8 @@ interface Props {
 const RecommendationPanel: React.FC<Props> = ({ analysis }) => {
   if (!analysis) return null;
 
-  // 🐞 Log the entire payload to debug missing fields
+  const [showCongress, setShowCongress] = useState<boolean>(false);
+
   useEffect(() => {
     console.log('[DEBUG] analysis payload:', analysis);
   }, [analysis]);
@@ -30,7 +30,6 @@ const RecommendationPanel: React.FC<Props> = ({ analysis }) => {
     expectedROI
   } = analysis;
 
-  // ✅ Format numbers and allow 0 to be shown
   const format = (val: number | undefined | null, prefix = '$', digits = 2) =>
     val === 0 || (typeof val === 'number' && isFinite(val)) ? `${prefix}${val.toFixed(digits)}` : 'N/A';
 
@@ -63,7 +62,7 @@ const RecommendationPanel: React.FC<Props> = ({ analysis }) => {
 
   return (
     <div className="bg-dark bg-opacity-75 rounded p-4 shadow border border-secondary">
-      {/* 🔹 Ticker & Confidence */}
+      {/* 🔹 Header */}
       <div className="d-flex justify-content-between align-items-start mb-4">
         <h3 className="h4 mb-0">
           Trade Analysis: <span className="text-info">{option?.ticker || 'N/A'}</span>
@@ -85,30 +84,46 @@ const RecommendationPanel: React.FC<Props> = ({ analysis }) => {
         </div>
         <div className="col-md-6">
           <div className="bg-black bg-opacity-50 rounded p-3">
-            <h6 className="fw-bold text-uppercase mb-1">Sentiment Summary</h6>
-            <div className="fs-5">{sentimentSummary || 'N/A'}</div>
+            <h6 className="fw-bold text-uppercase mb-1">Sentiment Headlines</h6>
+            {sentimentSummary ? (
+            <ul className="mb-0 small">
+  {sentimentSummary
+    .split('\n')
+    .map((line, i) => {
+      const cleanLine = line.trim().replace(/^[-•]+/, '').trim(); // Remove leading dashes or bullets
+      return cleanLine ? <li key={i}> {cleanLine}</li> : null;    // Skip empty lines
+    })}
+</ul>
+
+
+            ) : (
+              <p className="text-light-emphasis">N/A</p>
+            )}
           </div>
         </div>
       </div>
 
       {/* 📊 Price Targets */}
       <div className="row g-3 mb-4">
-        <div className="col-md-6"><h6>📈 Entry Price</h6><p>{format(entryPrice)}</p></div>
-        <div className="col-md-6"><h6>🎯 Target Price</h6><p>{targetPrice ? format(targetPrice) : fallbackTarget}</p></div>
-        <div className="col-md-6"><h6>🛑 Stop Loss</h6><p>{stopLoss ? format(stopLoss) : fallbackStop}</p></div>
-        <div className="col-md-6"><h6>📊 Break-Even</h6><p>{format(breakEvenPrice)}</p></div>
-        <div className="col-md-6"><h6>📆 Expiry</h6><p>{expiryDate ? new Date(expiryDate).toLocaleDateString() : 'N/A'}</p></div>
-        <div className="col-md-6"><h6>💹 ROI</h6><p>{typeof expectedROI === 'number' ? `${expectedROI.toFixed(2)}%` : 'N/A'}</p></div>
+        <div className="col-md-4 col-sm-6"><h6>📈 Entry Price</h6><p>{format(entryPrice)}</p></div>
+        <div className="col-md-4 col-sm-6"><h6>🎯 Target Price</h6><p>{targetPrice ? format(targetPrice) : fallbackTarget}</p></div>
+        <div className="col-md-4 col-sm-6"><h6>🛑 Stop Loss</h6><p>{stopLoss ? format(stopLoss) : fallbackStop}</p></div>
+        <div className="col-md-4 col-sm-6"><h6>📊 Break-Even</h6><p>{format(breakEvenPrice)}</p></div>
+        <div className="col-md-4 col-sm-6"><h6>📆 Expiry</h6><p>{expiryDate ? new Date(expiryDate).toLocaleDateString() : 'N/A'}</p></div>
+        <div className="col-md-4 col-sm-6"><h6>💹 ROI</h6><p>{typeof expectedROI === 'number' ? `${expectedROI.toFixed(2)}%` : 'N/A'}</p></div>
       </div>
 
       {/* 📈 Technical Indicators */}
-      <div className="row g-3 mb-4">
-        <div className="col-md-4"><h6>📊 RSI</h6><p>{format(indicators?.rsi)}</p></div>
-        <div className="col-md-4"><h6>💵 VWAP</h6><p>{format(indicators?.vwap)}</p></div>
-        <div className="col-md-4"><h6>📈 MACD Histogram</h6><p>{format(indicators?.macd?.histogram)}</p></div>
-      </div>
+    <div className="row g-3 mb-4">
+  <div className="col-md-4 col-sm-6"><h6>📊 RSI</h6><p>{format(indicators?.rsi, '', 2)}</p></div>
+  <div className="col-md-4 col-sm-6"><h6>💵 VWAP</h6><p>{format(indicators?.vwap)}</p></div>
+  <div className="col-md-4 col-sm-6"><h6>📈 MACD</h6><p>{format(indicators?.macd?.macd, '', 2)}</p></div>
+  <div className="col-md-4 col-sm-6"><h6>📉 Signal</h6><p>{format(indicators?.macd?.signal, '', 2)}</p></div>
+  <div className="col-md-4 col-sm-6"><h6>📊 Histogram</h6><p>{format(indicators?.macd?.histogram, '', 2)}</p></div>
+</div>
 
-      {/* 🎟️ Option Details */}
+
+      {/* 🎟️ Option Contract */}
       {option && (
         <div className="mb-4">
           <h5 className="fw-semibold mb-3">🎟️ Option Contract Details</h5>
@@ -117,16 +132,15 @@ const RecommendationPanel: React.FC<Props> = ({ analysis }) => {
             <li><strong>Strike:</strong> {format(option.strike_price)}</li>
             <li><strong>Expires:</strong> {option.expiration_date ? new Date(option.expiration_date).toLocaleDateString() : 'N/A'}</li>
             <li>
-              <strong>Cost:</strong> {format(typeof option.ask === 'number' ? option.ask * 100 : undefined)}
+              <strong>Cost:</strong> {format(option.ask ? option.ask * 100 : undefined)}
               <span
                 className="text-info ms-2"
                 data-bs-toggle="tooltip"
                 title="Options contracts typically represent 100 shares"
                 style={{ cursor: 'help' }}
-              >
-                ⓘ
-              </span>
+              >ⓘ</span>
             </li>
+            <li><strong>Implied Volatility:</strong> {format(option.implied_volatility, '', 2)}</li>
             <li><strong>Delta:</strong> {format(option.delta, '', 3)}</li>
             <li><strong>Gamma:</strong> {format(option.gamma, '', 3)}</li>
             <li><strong>Theta:</strong> {format(option.theta, '', 3)}</li>
@@ -136,20 +150,39 @@ const RecommendationPanel: React.FC<Props> = ({ analysis }) => {
         </div>
       )}
 
-      {/* 🧠 GPT Analysis & 🏛️ Congress */}
-      <div className="border-top border-secondary pt-4">
-        <div className="mb-4">
-          <h5 className="fw-bold mb-2">🧠 GPT Rationale</h5>
-          <p className="text-light-emphasis">{gptResponse || 'No explanation available.'}</p>
-        </div>
-        <div>
-          <h5 className="fw-bold mb-2">🏛️ Congressional Activity</h5>
-          <pre className="bg-black text-light p-3 rounded small">
-            {typeof congressTrades === 'string'
-              ? congressTrades
-              : JSON.stringify(congressTrades || 'N/A', null, 2)}
-          </pre>
-        </div>
+      {/* 🧠 GPT Explanation */}
+      <div className="border-top border-secondary pt-4 mb-4">
+        <h5 className="fw-bold mb-2">🧠 GPT Rationale</h5>
+        <p className="text-light-emphasis">{gptResponse || 'No explanation available.'}</p>
+      </div>
+
+      {/* 🏛️ Congressional Activity */}
+      <div>
+        <h5 className="fw-bold mb-2">🏛️ Congressional Activity</h5>
+        <button
+          className="btn btn-outline-info btn-sm mb-2"
+          onClick={() => setShowCongress(!showCongress)}
+          aria-expanded={showCongress}
+        >
+          {showCongress ? 'Hide Activity' : 'View Congressional Trades'}
+        </button>
+
+        {showCongress && (
+          <div
+            className="bg-black text-light p-3 rounded small"
+            style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+            dangerouslySetInnerHTML={{
+              __html: (typeof congressTrades === 'string'
+                ? congressTrades
+                : JSON.stringify(congressTrades || 'N/A', null, 2)
+              ).replace(
+                /(https?:\/\/[^\s]+)/g,
+                (url) =>
+                  `<a href="${url}" class="text-info text-decoration-underline" target="_blank" rel="noopener noreferrer">${url}</a>`
+              )
+            }}
+          />
+        )}
       </div>
     </div>
   );
