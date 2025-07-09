@@ -67,30 +67,31 @@ const Dashboard: React.FC = () => {
       // ✅ Flatten backend structure to match RecommendationPanel
       const updatedAnalysis: Record<string, AnalysisData> = {};
       for (const trade of result.recommendations) {
-        // ✅ Try several reliable sources for the ticker
+        const details = trade.analysis || trade;
+
         let rawTicker =
-          trade.ticker ||
-          trade.tickers?.[0] ||
-          (trade.option?.ticker?.includes(':') ? trade.option.ticker.split(':')[1].substring(0, 4) : null) ||
+          details.ticker ||
+          details.tickers?.[0] ||
+          (details.option?.ticker?.includes(':') ? details.option.ticker.split(':')[1].substring(0, 4) : null) ||
           'UNKNOWN';
 
         const ticker = rawTicker.toUpperCase();
 
         updatedAnalysis[ticker] = {
           ticker,
-          option: trade.option,
-          recommendationDirection: trade.tradeType || trade.recommendationDirection,
-          confidence: trade.confidence,
-          entryPrice: trade.entryPrice,
-          targetPrice: trade.targetPrice,
-          stopLoss: trade.stopLoss,
-          gptResponse: trade.analysis || trade.gptResponse,
-          sentimentSummary: trade.sentimentSummary || trade.sentiment,
-          congressTrades: trade.congressTrades || trade.congress,
-          breakEvenPrice: trade.breakEvenPrice,
-          expectedROI: trade.expectedROI,
-          indicators: trade.indicators,
-          expiryDate: trade.option?.expiration_date
+          option: details.option,
+          recommendationDirection: details.tradeType || details.recommendationDirection,
+          confidence: details.confidence,
+          entryPrice: details.entryPrice,
+          targetPrice: details.targetPrice,
+          stopLoss: details.stopLoss,
+          gptResponse: details.analysis || details.gptResponse,
+          sentimentSummary: details.sentimentSummary || details.sentiment,
+          congressTrades: details.congressTrades || details.congress,
+          breakEvenPrice: details.breakEvenPrice,
+          expectedROI: details.expectedROI,
+          indicators: details.indicators,
+          expiryDate: details.option?.expiration_date
         };
 
         console.log(`✅ [${ticker}] Final Mapped Analysis:`, updatedAnalysis[ticker]);
