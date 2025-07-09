@@ -375,9 +375,13 @@ export const analyzeTrade = async (req, res) => {
             breakEvenPrice,
             expectedROI,
             option: contract,
-            sentimentSummary: enrichedData.sentiment || 'N/A',
-            congressTrades: enrichedData.congress || 'N/A',
-            indicators: enrichedData.indicators || {
+            sentimentSummary: typeof enrichedData.sentiment === 'string' && enrichedData.sentiment.trim()
+              ? enrichedData.sentiment
+              : 'No news sentiment available.',
+            congressTrades: typeof enrichedData.congress === 'string' && enrichedData.congress.trim()
+              ? enrichedData.congress
+              : 'No congressional trades found.',
+            indicators: enrichedData.indicators ?? {
               rsi: null,
               macd: { histogram: null },
               vwap: null
@@ -385,6 +389,7 @@ export const analyzeTrade = async (req, res) => {
             expiryDate: contract.expiration_date
           }
         });
+
 
 
       } catch (err) {
