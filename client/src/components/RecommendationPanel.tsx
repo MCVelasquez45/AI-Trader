@@ -1,5 +1,5 @@
 // 📦 Import dependencies
-import React from 'react';
+import React, { useEffect } from 'react';
 import { AnalysisData } from '../types/Analysis';
 
 interface Props {
@@ -8,6 +8,11 @@ interface Props {
 
 const RecommendationPanel: React.FC<Props> = ({ analysis }) => {
   if (!analysis) return null;
+
+  // 🐞 Log the entire payload to debug missing fields
+  useEffect(() => {
+    console.log('[DEBUG] analysis payload:', analysis);
+  }, [analysis]);
 
   const {
     option,
@@ -25,103 +30,124 @@ const RecommendationPanel: React.FC<Props> = ({ analysis }) => {
     expectedROI
   } = analysis;
 
-  const format = (val: number | undefined | null, prefix = '$') =>
-    typeof val === 'number' ? `${prefix}${val.toFixed(2)}` : 'N/A';
+  // ✅ Format numbers and allow 0 to be shown
+  const format = (val: number | undefined | null, prefix = '$', digits = 2) =>
+    val === 0 || (typeof val === 'number' && isFinite(val)) ? `${prefix}${val.toFixed(digits)}` : 'N/A';
 
   const fallbackTarget = entryPrice ? `${(entryPrice * 1.05).toFixed(2)} (est.)` : 'N/A';
   const fallbackStop = entryPrice ? `${(entryPrice * 0.95).toFixed(2)} (est.)` : 'N/A';
 
   const confidenceBadge = (level: string | undefined) => {
-    switch (level) {
-      case 'High':
-      case 'Very High': return 'bg-success text-light';
-      case 'Medium': return 'bg-warning text-dark';
-      case 'Low':
-      default: return 'bg-danger text-light';
+    switch (level?.toLowerCase()) {
+      case 'very high':
+      case 'high':
+        return 'bg-success text-white';
+      case 'medium':
+        return 'bg-warning text-dark';
+      case 'low':
+      default:
+        return 'bg-danger text-white';
     }
   };
 
   const recommendationColor = (dir: string | undefined) => {
     switch (dir?.toLowerCase()) {
-      case 'call': return 'text-success';
-      case 'put': return 'text-danger';
-      default: return 'text-secondary';
+      case 'call':
+        return 'text-success';
+      case 'put':
+        return 'text-danger';
+      default:
+        return 'text-secondary';
     }
   };
 
   return (
-    <div className="bg-secondary bg-opacity-75 rounded p-4 shadow border border-dark">
-      {/* 🔹 Title & Confidence */}
+    <div className="bg-dark bg-opacity-75 rounded p-4 shadow border border-secondary">
+      {/* 🔹 Ticker & Confidence */}
       <div className="d-flex justify-content-between align-items-start mb-4">
-        <h3 className="h4">
+        <h3 className="h4 mb-0">
           Trade Analysis: <span className="text-info">{option?.ticker || 'N/A'}</span>
         </h3>
-        <span className={`badge px-3 py-2 ${confidenceBadge(confidence)}`}>Confidence: {confidence}</span>
+        <span className={`badge px-3 py-2 ${confidenceBadge(confidence)}`}>
+          Confidence: {confidence?.toUpperCase() || 'N/A'}
+        </span>
       </div>
 
-      {/* 🧠 Top Recommendation Blocks */}
+      {/* 🧠 Recommendation & Sentiment */}
       <div className="row g-3 mb-4">
         <div className="col-md-6">
-          <div className="bg-dark rounded p-3">
-            <h5 className="fw-semibold mb-2">Recommendation</h5>
+          <div className="bg-black bg-opacity-50 rounded p-3">
+            <h6 className="fw-bold text-uppercase mb-1">Recommendation</h6>
             <div className={`fs-4 fw-bold ${recommendationColor(recommendationDirection)}`}>
               {recommendationDirection?.toUpperCase() || 'N/A'}
             </div>
           </div>
         </div>
         <div className="col-md-6">
-          <div className="bg-dark rounded p-3">
-            <h5 className="fw-semibold mb-2">Sentiment</h5>
+          <div className="bg-black bg-opacity-50 rounded p-3">
+            <h6 className="fw-bold text-uppercase mb-1">Sentiment Summary</h6>
             <div className="fs-5">{sentimentSummary || 'N/A'}</div>
           </div>
         </div>
       </div>
 
-      {/* 📊 Trade Numbers */}
+      {/* 📊 Price Targets */}
       <div className="row g-3 mb-4">
         <div className="col-md-6"><h6>📈 Entry Price</h6><p>{format(entryPrice)}</p></div>
         <div className="col-md-6"><h6>🎯 Target Price</h6><p>{targetPrice ? format(targetPrice) : fallbackTarget}</p></div>
         <div className="col-md-6"><h6>🛑 Stop Loss</h6><p>{stopLoss ? format(stopLoss) : fallbackStop}</p></div>
         <div className="col-md-6"><h6>📊 Break-Even</h6><p>{format(breakEvenPrice)}</p></div>
         <div className="col-md-6"><h6>📆 Expiry</h6><p>{expiryDate ? new Date(expiryDate).toLocaleDateString() : 'N/A'}</p></div>
-        <div className="col-md-6"><h6>💹 ROI</h6><p>{expectedROI ? `${expectedROI}%` : 'N/A'}</p></div>
+        <div className="col-md-6"><h6>💹 ROI</h6><p>{typeof expectedROI === 'number' ? `${expectedROI.toFixed(2)}%` : 'N/A'}</p></div>
       </div>
 
-      {/* 📈 Indicators */}
+      {/* 📈 Technical Indicators */}
       <div className="row g-3 mb-4">
-        <div className="col-md-4"><h6>📊 RSI</h6><p>{indicators?.rsi?.toFixed(2) || 'N/A'}</p></div>
-        <div className="col-md-4"><h6>💵 VWAP</h6><p>{indicators?.vwap?.toFixed(2) || 'N/A'}</p></div>
-        <div className="col-md-4"><h6>📈 MACD Histogram</h6><p>{indicators?.macd?.histogram?.toFixed(2) || 'N/A'}</p></div>
+        <div className="col-md-4"><h6>📊 RSI</h6><p>{format(indicators?.rsi)}</p></div>
+        <div className="col-md-4"><h6>💵 VWAP</h6><p>{format(indicators?.vwap)}</p></div>
+        <div className="col-md-4"><h6>📈 MACD Histogram</h6><p>{format(indicators?.macd?.histogram)}</p></div>
       </div>
 
-      {/* 🧾 Option Contract Info */}
+      {/* 🎟️ Option Details */}
       {option && (
         <div className="mb-4">
-          <h5 className="fw-semibold mb-3">🎟️ Option Details</h5>
-          <ul className="list-unstyled">
+          <h5 className="fw-semibold mb-3">🎟️ Option Contract Details</h5>
+          <ul className="list-unstyled small">
             <li><strong>Type:</strong> {option.contract_type?.toUpperCase() || 'N/A'}</li>
             <li><strong>Strike:</strong> {format(option.strike_price)}</li>
-            <li><strong>Expires:</strong> {new Date(option.expiration_date).toLocaleDateString()}</li>
-            <li><strong>Cost:</strong> {format(option.ask ? option.ask * 100 : undefined)}</li>
-            <li><strong>Delta:</strong> {option.delta?.toFixed(3) || 'N/A'}</li>
-            <li><strong>Gamma:</strong> {option.gamma?.toFixed(3) || 'N/A'}</li>
-            <li><strong>Theta:</strong> {option.theta?.toFixed(3) || 'N/A'}</li>
-            <li><strong>Vega:</strong> {option.vega?.toFixed(3) || 'N/A'}</li>
-            <li><strong>Open Interest:</strong> {option.open_interest || 'N/A'}</li>
+            <li><strong>Expires:</strong> {option.expiration_date ? new Date(option.expiration_date).toLocaleDateString() : 'N/A'}</li>
+            <li>
+              <strong>Cost:</strong> {format(typeof option.ask === 'number' ? option.ask * 100 : undefined)}
+              <span
+                className="text-info ms-2"
+                data-bs-toggle="tooltip"
+                title="Options contracts typically represent 100 shares"
+                style={{ cursor: 'help' }}
+              >
+                ⓘ
+              </span>
+            </li>
+            <li><strong>Delta:</strong> {format(option.delta, '', 3)}</li>
+            <li><strong>Gamma:</strong> {format(option.gamma, '', 3)}</li>
+            <li><strong>Theta:</strong> {format(option.theta, '', 3)}</li>
+            <li><strong>Vega:</strong> {format(option.vega, '', 3)}</li>
+            <li><strong>Open Interest:</strong> {option.open_interest ?? 'N/A'}</li>
           </ul>
         </div>
       )}
 
-      {/* 🧠 GPT + 🏛️ Congress */}
-      <div className="border-top border-dark pt-4">
-        <div className="mb-3">
-          <h5 className="fw-semibold mb-2">🧠 GPT Explanation</h5>
+      {/* 🧠 GPT Analysis & 🏛️ Congress */}
+      <div className="border-top border-secondary pt-4">
+        <div className="mb-4">
+          <h5 className="fw-bold mb-2">🧠 GPT Rationale</h5>
           <p className="text-light-emphasis">{gptResponse || 'No explanation available.'}</p>
         </div>
         <div>
-          <h5 className="fw-semibold mb-2">🏛️ Congressional Activity</h5>
-          <pre className="bg-dark text-light p-3 rounded small">
-            {congressTrades || 'N/A'}
+          <h5 className="fw-bold mb-2">🏛️ Congressional Activity</h5>
+          <pre className="bg-black text-light p-3 rounded small">
+            {typeof congressTrades === 'string'
+              ? congressTrades
+              : JSON.stringify(congressTrades || 'N/A', null, 2)}
           </pre>
         </div>
       </div>

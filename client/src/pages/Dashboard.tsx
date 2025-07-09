@@ -67,14 +67,35 @@ const Dashboard: React.FC = () => {
       // ✅ Flatten backend structure to match RecommendationPanel
       const updatedAnalysis: Record<string, AnalysisData> = {};
       for (const trade of result.recommendations) {
-        const ticker = trade.ticker || trade.tickers?.[0] || 'Unknown';
+        // ✅ Try several reliable sources for the ticker
+        let rawTicker =
+          trade.ticker ||
+          trade.tickers?.[0] ||
+          (trade.option?.ticker?.includes(':') ? trade.option.ticker.split(':')[1].substring(0, 4) : null) ||
+          'UNKNOWN';
+
+        const ticker = rawTicker.toUpperCase();
 
         updatedAnalysis[ticker] = {
-          ...trade.recommendation,
-          option: trade.option,
           ticker,
+          option: trade.option,
+          recommendationDirection: trade.tradeType || trade.recommendationDirection,
+          confidence: trade.confidence,
+          entryPrice: trade.entryPrice,
+          targetPrice: trade.targetPrice,
+          stopLoss: trade.stopLoss,
+          gptResponse: trade.analysis || trade.gptResponse,
+          sentimentSummary: trade.sentimentSummary || trade.sentiment,
+          congressTrades: trade.congressTrades || trade.congress,
+          breakEvenPrice: trade.breakEvenPrice,
+          expectedROI: trade.expectedROI,
+          indicators: trade.indicators,
+          expiryDate: trade.option?.expiration_date
         };
+
+        console.log(`✅ [${ticker}] Final Mapped Analysis:`, updatedAnalysis[ticker]);
       }
+
 
       const firstTicker = result.recommendations[0]?.ticker || result.recommendations[0]?.tickers?.[0];
       setAnalysisData(updatedAnalysis);
@@ -209,7 +230,7 @@ const Dashboard: React.FC = () => {
       <footer className="py-4 border-top border-secondary mt-5">
         <div className="container text-center text-secondary">
           <p>© {new Date().getFullYear()} AI Options Trading Assistant. All rights reserved.</p>
-          <p className="mt-2 small">This is a demo application for educational purposes only.</p>
+          <p className="mt-2 small">This  application for educational purposes .</p>
         </div>
       </footer>
     </div>

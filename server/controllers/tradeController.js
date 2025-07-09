@@ -359,13 +359,33 @@ export const analyzeTrade = async (req, res) => {
         console.log(`✅ Recommendation for ${ticker} saved to MongoDB.`);
 
         // 📦 STEP 6: Prepare for frontend response
+        console.log('🧪 Final Enriched Object for Frontend Response:');
         enrichedTickers.push({
-          tickers: [ticker],
-          capital,
-          riskTolerance,
-          ...gptResponse,
-          option: contract
+          ticker,
+          analysis: {
+            tickers: [ticker],
+            capital,
+            riskTolerance,
+            recommendationDirection: gptResponse.tradeType.toLowerCase(),
+            confidence: gptResponse.confidence.toLowerCase(),
+            gptResponse: gptResponse.analysis,
+            entryPrice: gptResponse.entryPrice,
+            targetPrice: gptResponse.targetPrice,
+            stopLoss: gptResponse.stopLoss,
+            breakEvenPrice,
+            expectedROI,
+            option: contract,
+            sentimentSummary: enrichedData.sentiment || 'N/A',
+            congressTrades: enrichedData.congress || 'N/A',
+            indicators: enrichedData.indicators || {
+              rsi: null,
+              macd: { histogram: null },
+              vwap: null
+            },
+            expiryDate: contract.expiration_date
+          }
         });
+
 
       } catch (err) {
         console.error(`❌ Error processing ${ticker}:`, err.message || err);
