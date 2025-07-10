@@ -6,6 +6,7 @@ import { BsBank, BsBarChartFill, BsChatDotsFill } from 'react-icons/bs';
 import TradeForm from '../components/TradeForm';
 import RecommendationPanel from '../components/RecommendationPanel';
 import TypingDots from '../components/TypingDots';
+import TradeHistory from '../components/TradeHistory';
 
 // 🎯 Use AnalysisData type for trade recommendations
 import type { AnalysisData } from '../types/Analysis';
@@ -222,7 +223,7 @@ const Dashboard: React.FC = () => {
             <div className="mt-5">
               <div className="bg-secondary bg-opacity-75 rounded p-4 shadow border border-dark">
                 <h2 className="fs-5 fw-semibold mb-3 text-success">🕰️ GPT Trade History</h2>
-                {/* <TradeHistory /> */}
+                <TradeHistory />
               </div>
             </div>
           )}

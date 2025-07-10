@@ -427,6 +427,7 @@ export const analyzeTrade = async (req, res) => {
 export const getAllTrades = async (req, res) => {
   try {
     const trades = await TradeRecommendation.find().sort({ createdAt: -1 });
+    console.log(`📊 Fetched ${trades.length} trades from database`);
     res.json(trades);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch trade history' });
