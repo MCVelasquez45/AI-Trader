@@ -7,14 +7,11 @@ import mongoose from 'mongoose';
  */
 export const connectDB = async () => {
   try {
-    // ⚙️ Recommended connection options for better compatibility
-    const options = {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    };
+    // ⚙️ Mongoose v6+ handles most options internally — no need for useNewUrlParser or useUnifiedTopology
+    // These options are now deprecated and can be safely removed.
 
-    // 🔌 Establish connection
-    await mongoose.connect(process.env.MONGO_URI, options);
+    // 🔌 Establish connection (clean syntax with built-in defaults)
+    await mongoose.connect(process.env.MONGO_URI);
 
     // 🟢 Success log
     console.log(`✅ MongoDB Connected: ${mongoose.connection.host}`);
