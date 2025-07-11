@@ -13,12 +13,15 @@ import tickerToIssuerId from '../scrapers/tickerToIssuerId.js';
 const getCongressTrades = async (ticker) => {
   try {
     console.log(`\n🔍 [getCongressTrades] Resolving issuerId for ${ticker}...`);
+    
+    // ✅ DEBUG: Show environment mode
+    console.log(`🌍 NODE_ENV: ${process.env.NODE_ENV || 'undefined'}`);
 
     const issuerId = await tickerToIssuerId(ticker);
 
     if (!issuerId) {
       console.warn(`⚠️ No issuerId resolved for ticker: ${ticker}`);
-      return []; // ✅ Always return array
+      return [];
     }
 
     console.log(`✅ IssuerId resolved: ${issuerId}`);
@@ -26,9 +29,10 @@ const getCongressTrades = async (ticker) => {
 
     const trades = await scrapeCapitolTrades(issuerId);
 
+    // ✅ Fallback Logging
     if (!Array.isArray(trades) || trades.length === 0) {
       console.warn(`⚠️ No congressional trades found for issuerId ${issuerId}`);
-      return []; // ✅ Consistent: return empty array
+      return [];
     }
 
     console.log(`📊 ${trades.length} congressional trade(s) scraped for ${ticker}:`);
@@ -36,7 +40,6 @@ const getCongressTrades = async (ticker) => {
       console.log(`#${i + 1} — ${t.representative} | ${t.type} | ${t.amount} | ${t.date} | ${t.link}`);
     });
 
-    // ✅ Normalize and return trades
     return trades.map(t => ({
       representative: t.representative ?? 'Unknown',
       type: t.type ?? 'N/A',
@@ -47,7 +50,13 @@ const getCongressTrades = async (ticker) => {
 
   } catch (err) {
     console.error(`❌ getCongressTrades error for ${ticker}: ${err.message}`);
-    return []; // ✅ Always return array on failure
+    
+    // ✅ Log full error stack in production
+    if (process.env.NODE_ENV === 'production') {
+      console.error(err.stack);
+    }
+
+    return [];
   }
 };
 
