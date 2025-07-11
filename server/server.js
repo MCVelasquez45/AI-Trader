@@ -21,17 +21,20 @@ app.use = function (path, ...rest) {
   return originalUse(path, ...rest);
 };
 
-// ✅ CORS Setup
 const allowedOrigins = [
   'http://localhost:5173',
-   'http://localhost:5174', // ✅ ADD THIS LINE
+  'http://localhost:5174',
   'https://ai-trader-uvj9.vercel.app',
-  'https://ai-trader-uvj9-qurp9efkm-mcvelasquez45s-projects.vercel.app',
 ];
 
+// ✅ Match *.vercel.app subdomains dynamically
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (
+      !origin ||
+      allowedOrigins.includes(origin) ||
+      /https:\/\/ai-trader-uvj9-.*\.vercel\.app/.test(origin)
+    ) {
       callback(null, true);
     } else {
       console.warn('❌ Blocked by CORS:', origin);
@@ -43,8 +46,7 @@ app.use(cors({
   credentials: true
 }));
 
-// ✅ Preflight Support
-app.use(cors());
+
 
 // ✅ Body Parser
 app.use(express.json());
