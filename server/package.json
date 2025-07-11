@@ -1,12 +1,33 @@
 {
-  "name": "server",
+  "name": "ai-trader-backend",
   "version": "1.0.0",
+  "description": "AI-powered backend for generating options trade recommendations using real-time market data, GPT analysis, and congressional trading insights.",
+  "author": "Mark Velasquez <vectorsquarecoding@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MCVelasquez45/AI-Trader.git"
+  },
   "type": "module",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon --experimental-modules server.js",
     "mongo": "mongosh \"mongodb+srv://cluster0.jkftqzy.mongodb.net/\" --apiVersion 1 --username aiTraderUser"
   },
+  "engines": {
+    "node": "20.x"
+  },
+  "keywords": [
+    "ai-trader",
+    "options",
+    "GPT",
+    "polygon.io",
+    "congressional-trades",
+    "Node.js",
+    "backend",
+    "mongoose",
+    "OpenAI"
+  ],
   "dependencies": {
     "@polygon.io/client-js": "^7.4.0",
     "axios": "^1.9.0",
