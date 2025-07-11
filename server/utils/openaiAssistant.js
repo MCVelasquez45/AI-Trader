@@ -142,12 +142,14 @@ Only respond with a raw JSON object — no explanations, no formatting. Wrap the
 
     // 🧪 Replace line breaks (helps prevent JSON.parse errors)
     cleanResponse = cleanResponse.replace(/\n/g, ' ');
+    console.log('🧼 Cleaned GPT response before parsing:', cleanResponse);
 
     let parsed;
     try {
       parsed = JSON.parse(cleanResponse);
     } catch (err) {
       console.error('❌ JSON PARSE ERROR:', err.message);
+      console.error('🔎 Offending GPT Response:', cleanResponse);
       return { error: 'Failed to parse GPT response' };
     }
 
@@ -156,6 +158,7 @@ Only respond with a raw JSON object — no explanations, no formatting. Wrap the
     const missing = requiredFields.filter(field => !(field in parsed));
     if (missing.length) {
       console.error(`❌ MISSING FIELDS: ${missing.join(', ')}`);
+      console.log('📄 Full GPT response (cleaned):', parsed);
       return { error: 'Invalid GPT response format' };
     }
 

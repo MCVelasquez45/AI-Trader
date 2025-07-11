@@ -2,8 +2,14 @@ import axios from 'axios';
 import type { RiskLevel } from '../types/TradeForm';
 import type { ValidateTickerResponse } from '../types/OptionContract';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/api';
+const API_BASE =
+  import.meta.env.DEV
+    ? 'http://localhost:4545/api'
+    : (import.meta.env.VITE_API_URL || '/api').trim();
+
 console.log('🔁 API Base URL:', API_BASE);
+
+
 
 type TradePayload = Record<string, any>;
 
