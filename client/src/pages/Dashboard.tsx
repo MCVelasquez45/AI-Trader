@@ -1,14 +1,16 @@
-// 📦 Import React and hooks
+// File: pages/Dashboard.tsx
+
 import React, { useState } from 'react';
+import Layout from '../components/Layout';
 import { BsBank, BsBarChartFill, BsChatDotsFill } from 'react-icons/bs';
 
-// 📦 Import components
+// 📦 Components
 import TradeForm from '../components/TradeForm';
 import RecommendationPanel from '../components/RecommendationPanel';
 import TypingDots from '../components/TypingDots';
 import TradeHistory from '../components/TradeHistory';
 
-// 🎯 Use AnalysisData type for trade recommendations
+// 📘 Type for result payload
 import type { AnalysisData } from '../types/Analysis';
 
 type AnalysisResultPayload = {
@@ -19,7 +21,6 @@ type AnalysisResultPayload = {
   result: any;
 };
 
-// 📘 Dashboard Component — Main Page
 const Dashboard: React.FC = () => {
   const [analysisData, setAnalysisData] = useState<Record<string, AnalysisData>>({});
   const [loading, setLoading] = useState<boolean>(false);
@@ -27,7 +28,7 @@ const Dashboard: React.FC = () => {
   const [unaffordableTickers, setUnaffordableTickers] = useState<string[]>([]);
   const [showHistory, setShowHistory] = useState<boolean>(false);
 
-  // ✅ Called by <TradeForm> with final backend result
+  // ✅ Handle result from <TradeForm>
   const handleAnalysisResult = async ({
     tickers,
     capital,
@@ -65,48 +66,47 @@ const Dashboard: React.FC = () => {
         return;
       }
 
-      // ✅ Flatten backend structure to match RecommendationPanel
+      // ✅ Normalize structure for <RecommendationPanel>
       const updatedAnalysis: Record<string, AnalysisData> = {};
-     for (const trade of result.recommendations) {
-  const details = trade.analysis || trade;
+      for (const trade of result.recommendations) {
+        const details = trade.analysis || trade;
 
-  if (!details || typeof details !== 'object' || !details.option || !details.entryPrice) {
-    console.warn(`⚠️ Skipping malformed trade payload:`, trade);
-    continue;
-  }
+        if (!details || typeof details !== 'object' || !details.option || !details.entryPrice) {
+          console.warn(`⚠️ Skipping malformed trade payload:`, trade);
+          continue;
+        }
 
-  let rawTicker =
-    details.ticker ||
-    details.tickers?.[0] ||
-    (details.option?.ticker?.includes(':') ? details.option.ticker.split(':')[1].substring(0, 4) : null) ||
-    'UNKNOWN';
+        let rawTicker =
+          details.ticker ||
+          details.tickers?.[0] ||
+          (details.option?.ticker?.includes(':') ? details.option.ticker.split(':')[1].substring(0, 4) : null) ||
+          'UNKNOWN';
 
-  const ticker = rawTicker.toUpperCase();
+        const ticker = rawTicker.toUpperCase();
 
-  updatedAnalysis[ticker] = {
-    ticker,
-    option: details.option,
-    recommendationDirection: details.tradeType || details.recommendationDirection,
-    confidence: details.confidence,
-    entryPrice: details.entryPrice,
-    targetPrice: details.targetPrice,
-    stopLoss: details.stopLoss,
-    gptResponse: details.gptResponse || details.analysis,
-    sentimentSummary: details.sentimentSummary || details.sentiment || 'N/A',
-    congressTrades: details.congressTrades || details.congress || 'N/A',
-    breakEvenPrice: details.breakEvenPrice ?? 'N/A',
-    expectedROI: details.expectedROI ?? 'N/A',
-    indicators: details.indicators ?? {
-      rsi: null,
-      macd: { histogram: null },
-      vwap: null
-    },
-    expiryDate: details.option?.expiration_date
-  };
+        updatedAnalysis[ticker] = {
+          ticker,
+          option: details.option,
+          recommendationDirection: details.tradeType || details.recommendationDirection,
+          confidence: details.confidence,
+          entryPrice: details.entryPrice,
+          targetPrice: details.targetPrice,
+          stopLoss: details.stopLoss,
+          gptResponse: details.gptResponse || details.analysis,
+          sentimentSummary: details.sentimentSummary || details.sentiment || 'N/A',
+          congressTrades: details.congressTrades || details.congress || 'N/A',
+          breakEvenPrice: details.breakEvenPrice ?? 'N/A',
+          expectedROI: details.expectedROI ?? 'N/A',
+          indicators: details.indicators ?? {
+            rsi: null,
+            macd: { histogram: null },
+            vwap: null
+          },
+          expiryDate: details.option?.expiration_date
+        };
 
-  console.log(`✅ [${ticker}] Final Mapped Analysis:`, updatedAnalysis[ticker]);
-}
-
+        console.log(`✅ [${ticker}] Final Mapped Analysis:`, updatedAnalysis[ticker]);
+      }
 
       const firstTicker = result.recommendations[0]?.ticker || result.recommendations[0]?.tickers?.[0];
       setAnalysisData(updatedAnalysis);
@@ -121,30 +121,17 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // 📦 Render UI
   return (
-    <div className="min-vh-100 text-white" style={{ background: 'linear-gradient(to bottom right, #0f172a, #0b1120)' }}>
-      {/* 🔝 Header */}
-      <header className="py-4 border-bottom ">
-        <div className="container d-flex justify-content-between align-items-center">
-          <h1 className="fs-3 fw-bold" style={{ backgroundImage: 'linear-gradient(to right, #0ea5e9, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            AI Options Trading Assistant
-          </h1>
-          <nav className="d-none d-md-block">
-            <a href="#" className="text-light mx-2 text-decoration-none">Dashboard</a>
-            <a href="#" className="text-light mx-2 text-decoration-none">Market Data</a>
-            <a href="#" className="text-light mx-2 text-decoration-none">Settings</a>
-          </nav>
-        </div>
-      </header>
-
-      {/* 🔧 Main Content */}
+    <Layout>
+      {/* 🔧 Main Dashboard Content */}
       <main className="container py-5">
         <div className="mx-auto" style={{ maxWidth: '960px' }}>
-          {/* 📌 Intro Section */}
+          {/* 📌 Intro */}
           <div className="mb-5 text-center">
             <h2 className="fs-2 fw-bold mb-3">Analyze Your Trade Opportunity</h2>
-            <p className="text-secondary">Enter a stock ticker symbol, your available capital, and your risk tolerance level to get an AI-powered options trading recommendation.</p>
+            <p className="text-secondary">
+              Enter a stock ticker symbol, your available capital, and your risk tolerance level to get an AI-powered options trading recommendation.
+            </p>
           </div>
 
           {/* 📾 Trade Form */}
@@ -152,7 +139,7 @@ const Dashboard: React.FC = () => {
             <TradeForm onAnalyze={handleAnalysisResult} />
           </div>
 
-          {/* ⏳ Loading State */}
+          {/* ⏳ Loading */}
           {loading && <TypingDots />}
 
           {/* ⚠️ Skipped Tickers */}
@@ -167,7 +154,7 @@ const Dashboard: React.FC = () => {
             </div>
           )}
 
-          {/* 📟 Empty State */}
+          {/* 📟 No Results Yet */}
           {!loading && !activeTicker && (
             <div className="bg-dark bg-opacity-25 rounded-xl p-5 text-center border-4 border-dashed border-blue-800 mb-5">
               <svg width="64" height="64" className="text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -178,28 +165,32 @@ const Dashboard: React.FC = () => {
             </div>
           )}
 
-          {/* ✅ Analysis Result Panel */}
+          {/* ✅ Result Panel */}
           {activeTicker && !loading && (
             <RecommendationPanel analysis={analysisData[activeTicker]} />
           )}
 
-          {/* 💡 How It Works */}
+          {/* 💡 How It Works Section */}
           <section className="mt-5">
             <h2 className="h4 fw-bold mb-4 text-center">How It Works</h2>
             <div className="row g-4">
-              {[{
-                title: "Real-Time Market Data",
-                description: "We analyze real-time stock prices, volume, and technical indicators to identify potential opportunities.",
-                icon: <BsBarChartFill size={32} className="text-info" />
-              }, {
-                title: "Sentiment Analysis",
-                description: "Our AI scans news articles, social media, and analyst reports to gauge market sentiment around each stock.",
-                icon: <BsChatDotsFill size={32} className="text-primary" />
-              }, {
-                title: "Congressional Insights",
-                description: "Track insider trading activity and regulatory changes that could impact stock performance.",
-                icon: <BsBank size={32} className="text-success" />
-              }].map((feature, index) => (
+              {[
+                {
+                  title: 'Real-Time Market Data',
+                  description: 'We analyze real-time stock prices, volume, and technical indicators to identify potential opportunities.',
+                  icon: <BsBarChartFill size={32} className="text-info" />
+                },
+                {
+                  title: 'Sentiment Analysis',
+                  description: 'Our AI scans news articles, social media, and analyst reports to gauge market sentiment around each stock.',
+                  icon: <BsChatDotsFill size={32} className="text-primary" />
+                },
+                {
+                  title: 'Congressional Insights',
+                  description: 'Track insider trading activity and regulatory changes that could impact stock performance.',
+                  icon: <BsBank size={32} className="text-success" />
+                }
+              ].map((feature, index) => (
                 <div key={index} className="col-md-4">
                   <div className="rounded p-4 h-100 border border-secondary text-center">
                     <div className="mb-3 d-flex justify-content-center">{feature.icon}</div>
@@ -211,14 +202,16 @@ const Dashboard: React.FC = () => {
             </div>
           </section>
 
-          {/* 🚀 Call To Action Section */}
+          {/* 🚀 Call to Action */}
           <section className="mt-5 text-center py-5 rounded border border-secondary" style={{ background: 'linear-gradient(to right, rgba(0, 123, 255, 0.1), rgba(138, 43, 226, 0.1))' }}>
             <h2 className="h4 fw-bold mb-3">Ready to Make Smarter Trades?</h2>
             <p className="text-secondary mb-4">Our AI-powered assistant combines multiple data sources to give you actionable options trading recommendations.</p>
-            <button className="btn fw-semibold px-4 py-2" style={{ background: 'linear-gradient(to right, #0ea5e9, #a855f7)', color: '#fff', border: 'none' }}>Start Analyzing Now</button>
+            <button className="btn fw-semibold px-4 py-2" style={{ background: 'linear-gradient(to right, #0ea5e9, #a855f7)', color: '#fff', border: 'none' }}>
+              Start Analyzing Now
+            </button>
           </section>
 
-          {/* 🕰️ History Section */}
+          {/* 🕰️ History */}
           {showHistory && (
             <div className="mt-5">
               <div className="bg-secondary bg-opacity-75 rounded p-4 shadow border border-dark">
@@ -228,7 +221,7 @@ const Dashboard: React.FC = () => {
             </div>
           )}
 
-          {/* 🔁 Toggle GPT History Button */}
+          {/* 🔁 History Toggle */}
           <div className="text-center mt-4">
             <button className="btn btn-link text-primary text-decoration-none" onClick={() => setShowHistory(!showHistory)}>
               {showHistory ? 'Hide GPT History' : 'View GPT History'}
@@ -241,10 +234,10 @@ const Dashboard: React.FC = () => {
       <footer className="py-4 border-top border-secondary mt-5">
         <div className="container text-center text-secondary">
           <p>© {new Date().getFullYear()} AI Options Trading Assistant. All rights reserved.</p>
-          <p className="mt-2 small">This  application for educational purposes .</p>
+          <p className="mt-2 small">This application is for educational purposes.</p>
         </div>
       </footer>
-    </div>
+    </Layout>
   );
 };
 
