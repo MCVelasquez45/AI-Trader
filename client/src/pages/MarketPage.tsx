@@ -1,5 +1,3 @@
-// File: pages/MarketPage.tsx
-
 import React, { useState } from 'react';
 import Layout from '../components/Layout';
 
@@ -23,6 +21,8 @@ import promptSetup5 from '../AssetLogs/promptSetup5.png';
 import gptResponse from '../AssetLogs/gptResponse.png';
 import finalGptResponse from '../AssetLogs/finalGptResponse.png';
 import CronJob from '../AssetLogs/CronJob.png';
+import vercelDeploy from '../AssetLogs/Vercel_Frontend_Deploy.png';
+import renderDeploy from '../AssetLogs/render.com_deploy.png';
 
 const MarketPage: React.FC = () => {
 
@@ -35,6 +35,22 @@ const MarketPage: React.FC = () => {
           <p className="text-secondary">
             We walk through how our AI analyzes your selected stock and generates actionable recommendations.
           </p>
+        </section>
+
+        {/* 🌐 Deployment Overview */}
+        <section className="mb-5">
+          <h3 className="fs-4 fw-bold">⚙️ DevOps & Deployment</h3>
+          <p>Our frontend is deployed using <strong>Vercel</strong> and our backend is hosted on <strong>Render.com</strong>. This enables seamless CI/CD workflows for stakeholders and students—develop locally, commit to GitHub, and auto-deploy to production.</p>
+          <div className="row g-3">
+            <div className="col-md-6">
+              <img src={vercelDeploy} className="img-fluid rounded shadow" alt="Vercel Frontend Deployment" />
+              <p className="small text-center mt-2">Frontend Deployment via Vercel</p>
+            </div>
+            <div className="col-md-6">
+              <img src={renderDeploy} className="img-fluid rounded shadow" alt="Render Backend Deployment" />
+              <p className="small text-center mt-2">Backend Deployment via Render</p>
+            </div>
+          </div>
         </section>
 
         {/* 🔍 Step 1 — Ticker & Capital Validation */}
