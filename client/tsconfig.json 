@@ -15,9 +15,11 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "jsxImportSource": "react",          // ✅ THIS LINE IS REQUIRED FOR TS TO UNDERSTAND JSX
-    "types": ["react", "react-dom", "vite/client"]
+    "jsxImportSource": "react",
+    "types": ["react", "react-dom", "vite/client"],
 
+    // ✅ NEW: Ensures image and custom declaration files are respected
+    "typeRoots": ["./node_modules/@types", "./src/types"]
   },
   "include": ["src", "types"],
   "exclude": ["node_modules"]

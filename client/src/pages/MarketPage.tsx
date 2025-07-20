@@ -25,7 +25,6 @@ import finalGptResponse from '../AssetLogs/finalGptResponse.png';
 import CronJob from '../AssetLogs/CronJob.png';
 
 const MarketPage: React.FC = () => {
-  const [ticker, setTicker] = useState('AAPL');
 
   return (
     <Layout>

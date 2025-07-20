@@ -1,5 +1,3 @@
-// File: pages/Dashboard.tsx
-
 import React, { useState } from 'react';
 import Layout from '../components/Layout';
 import { BsBank, BsBarChartFill, BsChatDotsFill } from 'react-icons/bs';
@@ -28,13 +26,7 @@ const Dashboard: React.FC = () => {
   const [unaffordableTickers, setUnaffordableTickers] = useState<string[]>([]);
   const [showHistory, setShowHistory] = useState<boolean>(false);
 
-  // ✅ Handle result from <TradeForm>
-  const handleAnalysisResult = async ({
-    tickers,
-    capital,
-    riskTolerance,
-    result
-  }: AnalysisResultPayload) => {
+  const handleAnalysisResult = async ({ tickers, capital, riskTolerance, result }: AnalysisResultPayload) => {
     console.log('📬 Received analysis result from <TradeForm>');
     console.log('📈 Tickers:', tickers);
     console.log('💰 Capital:', capital);
@@ -66,7 +58,6 @@ const Dashboard: React.FC = () => {
         return;
       }
 
-      // ✅ Normalize structure for <RecommendationPanel>
       const updatedAnalysis: Record<string, AnalysisData> = {};
       for (const trade of result.recommendations) {
         const details = trade.analysis || trade;
@@ -123,10 +114,8 @@ const Dashboard: React.FC = () => {
 
   return (
     <Layout>
-      {/* 🔧 Main Dashboard Content */}
       <main className="container py-5">
         <div className="mx-auto" style={{ maxWidth: '960px' }}>
-          {/* 📌 Intro */}
           <div className="mb-5 text-center">
             <h2 className="fs-2 fw-bold mb-3">Analyze Your Trade Opportunity</h2>
             <p className="text-secondary">
@@ -135,14 +124,12 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* 📾 Trade Form */}
-          <div className="bg-opacity-75 rounded p-4 shadow border border-dark mb-4">
+          <div id="trade-form-section" className="bg-opacity-75 rounded p-4 shadow border border-dark mb-4">
             <TradeForm onAnalyze={handleAnalysisResult} />
           </div>
 
-          {/* ⏳ Loading */}
           {loading && <TypingDots />}
 
-          {/* ⚠️ Skipped Tickers */}
           {unaffordableTickers.length > 0 && (
             <div className="alert alert-warning">
               <strong>⚠️ Some tickers were skipped:</strong>
@@ -154,7 +141,6 @@ const Dashboard: React.FC = () => {
             </div>
           )}
 
-          {/* 📟 No Results Yet */}
           {!loading && !activeTicker && (
             <div className="bg-dark bg-opacity-25 rounded-xl p-5 text-center border-4 border-dashed border-blue-800 mb-5">
               <svg width="64" height="64" className="text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,32 +151,26 @@ const Dashboard: React.FC = () => {
             </div>
           )}
 
-          {/* ✅ Result Panel */}
           {activeTicker && !loading && (
             <RecommendationPanel analysis={analysisData[activeTicker]} />
           )}
 
-          {/* 💡 How It Works Section */}
           <section className="mt-5">
             <h2 className="h4 fw-bold mb-4 text-center">How It Works</h2>
             <div className="row g-4">
-              {[
-                {
-                  title: 'Real-Time Market Data',
-                  description: 'We analyze real-time stock prices, volume, and technical indicators to identify potential opportunities.',
-                  icon: <BsBarChartFill size={32} className="text-info" />
-                },
-                {
-                  title: 'Sentiment Analysis',
-                  description: 'Our AI scans news articles, social media, and analyst reports to gauge market sentiment around each stock.',
-                  icon: <BsChatDotsFill size={32} className="text-primary" />
-                },
-                {
-                  title: 'Congressional Insights',
-                  description: 'Track insider trading activity and regulatory changes that could impact stock performance.',
-                  icon: <BsBank size={32} className="text-success" />
-                }
-              ].map((feature, index) => (
+              {[{
+                title: 'Real-Time Market Data',
+                description: 'We analyze real-time stock prices, volume, and technical indicators to identify potential opportunities.',
+                icon: <BsBarChartFill size={32} className="text-info" />
+              }, {
+                title: 'Sentiment Analysis',
+                description: 'Our AI scans news articles, social media, and analyst reports to gauge market sentiment around each stock.',
+                icon: <BsChatDotsFill size={32} className="text-primary" />
+              }, {
+                title: 'Congressional Insights',
+                description: 'Track insider trading activity and regulatory changes that could impact stock performance.',
+                icon: <BsBank size={32} className="text-success" />
+              }].map((feature, index) => (
                 <div key={index} className="col-md-4">
                   <div className="rounded p-4 h-100 border border-secondary text-center">
                     <div className="mb-3 d-flex justify-content-center">{feature.icon}</div>
@@ -202,16 +182,21 @@ const Dashboard: React.FC = () => {
             </div>
           </section>
 
-          {/* 🚀 Call to Action */}
           <section className="mt-5 text-center py-5 rounded border border-secondary" style={{ background: 'linear-gradient(to right, rgba(0, 123, 255, 0.1), rgba(138, 43, 226, 0.1))' }}>
             <h2 className="h4 fw-bold mb-3">Ready to Make Smarter Trades?</h2>
             <p className="text-secondary mb-4">Our AI-powered assistant combines multiple data sources to give you actionable options trading recommendations.</p>
-            <button className="btn fw-semibold px-4 py-2" style={{ background: 'linear-gradient(to right, #0ea5e9, #a855f7)', color: '#fff', border: 'none' }}>
+            <button
+              onClick={() => {
+                const formSection = document.getElementById("trade-form-section");
+                if (formSection) formSection.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="btn fw-semibold px-4 py-2"
+              style={{ background: 'linear-gradient(to right, #0ea5e9, #a855f7)', color: '#fff', border: 'none' }}
+            >
               Start Analyzing Now
             </button>
           </section>
 
-          {/* 🕰️ History */}
           {showHistory && (
             <div className="mt-5">
               <div className="bg-secondary bg-opacity-75 rounded p-4 shadow border border-dark">
@@ -221,7 +206,6 @@ const Dashboard: React.FC = () => {
             </div>
           )}
 
-          {/* 🔁 History Toggle */}
           <div className="text-center mt-4">
             <button className="btn btn-link text-primary text-decoration-none" onClick={() => setShowHistory(!showHistory)}>
               {showHistory ? 'Hide GPT History' : 'View GPT History'}
@@ -230,7 +214,6 @@ const Dashboard: React.FC = () => {
         </div>
       </main>
 
-      {/* 🔻 Footer */}
       <footer className="py-4 border-top border-secondary mt-5">
         <div className="container text-center text-secondary">
           <p>© {new Date().getFullYear()} AI Options Trading Assistant. All rights reserved.</p>
