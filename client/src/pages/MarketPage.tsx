@@ -25,7 +25,6 @@ import vercelDeploy from '../AssetLogs/Vercel_Frontend_Deploy.png';
 import renderDeploy from '../AssetLogs/render.com_deploy.png';
 
 const MarketPage: React.FC = () => {
-
   return (
     <Layout>
       <main className="container py-5">
@@ -124,7 +123,18 @@ const MarketPage: React.FC = () => {
         <section className="mb-5">
           <h3 className="fs-4 fw-bold">🚀 What’s Next</h3>
           <ul className="text-start">
-            <li><strong>📡 RAG (Retrieval-Augmented Generation):</strong> to enhance explainability and source trust.</li>
+            <li>
+              <strong>📡 RAG (Retrieval-Augmented Generation):</strong>
+              <div className="mt-2">
+                <p className="mb-1">We're integrating RAG to elevate the quality and traceability of our trade recommendations by:</p>
+                <ul className="mb-2">
+                  <li>📥 <strong>Retrieving</strong> real-time data (price, volume, sentiment, political disclosures)</li>
+                  <li>🧠 <strong>Augmenting</strong> GPT prompts with external context</li>
+                  <li>📤 <strong>Generating</strong> decisions that are both explainable and transparent</li>
+                </ul>
+                <p className="mb-0">This process will be GPU-accelerated using the <strong>NVIDIA NeMo framework</strong>, allowing us to scale embedding generation and inference while maintaining clarity for users and confidence for stakeholders.</p>
+              </div>
+            </li>
             <li><strong>📲 AWS SMS Notifications:</strong> for alerts on new entries and exit signals.</li>
             <li><strong>🔐 Google Auth:</strong> deferred sign-in and user tracking for trade history and security.</li>
             <li><strong>📊 Stakeholder Transparency:</strong> mode to visualize all internal decision steps in real time.</li>
