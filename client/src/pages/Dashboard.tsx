@@ -2,13 +2,11 @@ import React, { useState } from 'react';
 import Layout from '../components/Layout';
 import { BsBank, BsBarChartFill, BsChatDotsFill } from 'react-icons/bs';
 
-// 📦 Components
 import TradeForm from '../components/TradeForm';
 import RecommendationPanel from '../components/RecommendationPanel';
 import TypingDots from '../components/TypingDots';
 import TradeHistory from '../components/TradeHistory';
 
-// 📘 Type for result payload
 import type { AnalysisData } from '../types/Analysis';
 
 type AnalysisResultPayload = {
@@ -26,6 +24,7 @@ const Dashboard: React.FC = () => {
   const [unaffordableTickers, setUnaffordableTickers] = useState<string[]>([]);
   const [showHistory, setShowHistory] = useState<boolean>(false);
 
+  // ✅ Handle result passed from TradeForm
   const handleAnalysisResult = async ({ tickers, capital, riskTolerance, result }: AnalysisResultPayload) => {
     console.log('📬 Received analysis result from <TradeForm>');
     console.log('📈 Tickers:', tickers);
@@ -58,6 +57,7 @@ const Dashboard: React.FC = () => {
         return;
       }
 
+      // ✅ Build new analysis data map
       const updatedAnalysis: Record<string, AnalysisData> = {};
       for (const trade of result.recommendations) {
         const details = trade.analysis || trade;
@@ -100,9 +100,16 @@ const Dashboard: React.FC = () => {
       }
 
       const firstTicker = result.recommendations[0]?.ticker || result.recommendations[0]?.tickers?.[0];
-      setAnalysisData(updatedAnalysis);
-      setActiveTicker(firstTicker);
-      console.log('✅ Analysis complete. Active Ticker:', firstTicker);
+
+      // ✅ Force re-render by resetting state before updating
+      setActiveTicker(null);
+      setAnalysisData({});
+
+      setTimeout(() => {
+        setAnalysisData(updatedAnalysis);
+        setActiveTicker(firstTicker);
+        console.log('✅ Analysis complete. Active Ticker:', firstTicker);
+      }, 100);
     } catch (err: any) {
       const msg = err.response?.data?.error || err.message || 'Unknown error';
       alert(`❌ Failed to process analysis result: ${msg}`);
@@ -128,8 +135,10 @@ const Dashboard: React.FC = () => {
             <TradeForm onAnalyze={handleAnalysisResult} />
           </div>
 
+          {/* 🔄 Loading spinner */}
           {loading && <TypingDots />}
 
+          {/* ⚠️ Unaffordable Tickers */}
           {unaffordableTickers.length > 0 && (
             <div className="alert alert-warning">
               <strong>⚠️ Some tickers were skipped:</strong>
@@ -141,6 +150,7 @@ const Dashboard: React.FC = () => {
             </div>
           )}
 
+          {/* 🕳️ No Recommendation Yet */}
           {!loading && !activeTicker && (
             <div className="bg-dark bg-opacity-25 rounded-xl p-5 text-center border-4 border-dashed border-blue-800 mb-5">
               <svg width="64" height="64" className="text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -151,10 +161,33 @@ const Dashboard: React.FC = () => {
             </div>
           )}
 
-          {activeTicker && !loading && (
-            <RecommendationPanel analysis={analysisData[activeTicker]} />
-          )}
+          {/* ✅ Show Recommendation */}
+         {!loading && Object.keys(analysisData).length > 0 && (
+  <>
+    <h3 className="text-light mb-4">📈 Trade Recommendations</h3>
 
+    {/* 🔁 Tab Selector */}
+    <div className="d-flex flex-wrap gap-2 mb-3">
+      {Object.keys(analysisData).map((ticker) => (
+        <button
+          key={ticker}
+          className={`btn btn-sm fw-bold ${activeTicker === ticker ? 'btn-info' : 'btn-outline-secondary'}`}
+          onClick={() => setActiveTicker(ticker)}
+        >
+          {ticker}
+        </button>
+      ))}
+    </div>
+
+    {/* 📈 Active Recommendation Panel */}
+    {activeTicker && analysisData[activeTicker] && (
+      <RecommendationPanel analysis={analysisData[activeTicker]} />
+    )}
+  </>
+)}
+
+
+          {/* 📘 Feature Explanation */}
           <section className="mt-5">
             <h2 className="h4 fw-bold mb-4 text-center">How It Works</h2>
             <div className="row g-4">
@@ -182,6 +215,7 @@ const Dashboard: React.FC = () => {
             </div>
           </section>
 
+          {/* 🚀 Call to Action */}
           <section className="mt-5 text-center py-5 rounded border border-secondary" style={{ background: 'linear-gradient(to right, rgba(0, 123, 255, 0.1), rgba(138, 43, 226, 0.1))' }}>
             <h2 className="h4 fw-bold mb-3">Ready to Make Smarter Trades?</h2>
             <p className="text-secondary mb-4">Our AI-powered assistant combines multiple data sources to give you actionable options trading recommendations.</p>
@@ -197,6 +231,7 @@ const Dashboard: React.FC = () => {
             </button>
           </section>
 
+          {/* 🕰️ Trade History */}
           {showHistory && (
             <div className="mt-5">
               <div className="bg-secondary bg-opacity-75 rounded p-4 shadow border border-dark">
@@ -206,6 +241,7 @@ const Dashboard: React.FC = () => {
             </div>
           )}
 
+          {/* 🧭 Toggle History */}
           <div className="text-center mt-4">
             <button className="btn btn-link text-primary text-decoration-none" onClick={() => setShowHistory(!showHistory)}>
               {showHistory ? 'Hide GPT History' : 'View GPT History'}
@@ -214,6 +250,7 @@ const Dashboard: React.FC = () => {
         </div>
       </main>
 
+      {/* 📜 Footer */}
       <footer className="py-4 border-top border-secondary mt-5">
         <div className="container text-center text-secondary">
           <p>© {new Date().getFullYear()} AI Options Trading Assistant. All rights reserved.</p>
