@@ -6,39 +6,57 @@ dotenv.config();
 import axios from 'axios';
 import TradeRecommendation from '../models/TradeRecommendation.js';
 
+const POLYGON_API_KEY = process.env.POLYGON_API_KEY;
+
 /**
- * 🔁 Fallback function: Get the last known close price from Yahoo Finance
- * Used when Polygon or other data sources aren't accessible
+ * 🔁 Fetch the close price from Polygon.io using the trade's actual expiry date.
+ * This is critical for accurate outcome determination on expiration day.
+ *
  * @param {string} ticker - Stock symbol (e.g., "AAPL")
- * @returns {Promise<number|null>}
+ * @param {string} dateStr - Expiration date in YYYY-MM-DD format
+ * @returns {Promise<object|null>} - Full close response from Polygon or null
  */
-async function getLastCloseFromYahoo(ticker) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=1d&interval=1d`;
-
+async function fetchCloseDataFromPolygon(ticker, dateStr) {
   try {
-    const response = await axios.get(url);
-    const data = response.data.chart.result?.[0];
+    const url = `https://api.polygon.io/v1/open-close/${ticker}/${dateStr}?adjusted=true&apiKey=${POLYGON_API_KEY}`;
+    console.log(`📡 Fetching close price from Polygon: ${url}`);
 
-    // 📉 Extract final close price for 1-day interval
-    const close = data?.indicators?.quote?.[0]?.close?.[0];
-    if (typeof close !== 'number') throw new Error('Invalid close price');
-    return close;
+    const response = await axios.get(url);
+
+    // Validate response contains a usable close price
+    if (!response.data || typeof response.data.close !== 'number') {
+      throw new Error('Missing or invalid close price in Polygon response');
+    }
+
+    return response.data;
   } catch (err) {
-    console.error(`❌ Yahoo fallback failed for ${ticker}:`, err.message);
+    console.error(`❌ Polygon API failed for ${ticker} on ${dateStr}:`, err.message);
     return null;
   }
 }
 
 /**
- * 🧠 Main function: Evaluate all expired trades that are still marked as 'pending'
- * Updates each trade’s outcome as either 'win' or 'loss' based on final stock price
+ * 🧠 Main evaluation routine to determine trade outcomes.
+ * - Evaluates all "pending" trades with expired contracts
+ * - Uses Polygon close price on expiry to determine result
+ * - Updates MongoDB with outcome, percentage gain/loss, and snapshot data
  */
 async function evaluateExpiredTrades() {
   try {
     const now = new Date();
-    console.log(`🕒 Evaluating expired trades at ${now.toISOString()}`);
 
-    // 🔍 Find all pending trades whose expiration date has passed
+    // ⚠️ Don't evaluate until after U.S. market close (4PM EST = 20:00 UTC)
+    const currentHourUTC = now.getUTCHours();
+    const marketCloseUTC = 20;
+
+    if (currentHourUTC < marketCloseUTC) {
+      console.log('⏳ Market still open — evaluation postponed until after 4PM EST (20:00 UTC)');
+      return;
+    }
+
+    console.log(`🕒 Starting trade evaluation at ${now.toISOString()}`);
+
+    // 🗃 Query all expired trades that haven’t been evaluated yet
     const trades = await TradeRecommendation.find({
       outcome: 'pending',
       expiryDate: { $lte: now },
@@ -48,37 +66,61 @@ async function evaluateExpiredTrades() {
     console.log(`📊 Found ${trades.length} expired trades to evaluate`);
 
     for (const trade of trades) {
+      // Format the expiration date into YYYY-MM-DD for the API
+      const expiry = new Date(trade.expiryDate);
+      const yyyy = expiry.getFullYear();
+      const mm = String(expiry.getMonth() + 1).padStart(2, '0');
+      const dd = String(expiry.getDate()).padStart(2, '0');
+      const dateStr = `${yyyy}-${mm}-${dd}`;
+
       for (const ticker of trade.tickers) {
         try {
-          console.log(`📈 Fetching last close price for ${ticker}...`);
-          const exitPrice = await getLastCloseFromYahoo(ticker);
+          console.log(`📈 Retrieving close price for ${ticker} on expiry (${dateStr})...`);
 
-          // 🛑 Skip if no valid price was returned
-          if (typeof exitPrice !== 'number') {
-            console.warn(`⚠️ No valid exit price for ${ticker}`);
+          const closeData = await fetchCloseDataFromPolygon(ticker, dateStr);
+
+          if (!closeData) {
+            console.warn(`⚠️ No close data found for ${ticker} — skipping this ticker`);
             continue;
           }
 
-          // ✅ Determine outcome based on entry vs. exit and trade direction
+          const exitPrice = closeData.close;
+          const entryPrice = trade.entryPrice;
+
+          // 📈 Determine win/loss based on trade direction
           let outcome = 'pending';
           if (trade.recommendationDirection === 'call') {
-            outcome = exitPrice > trade.entryPrice ? 'win' : 'loss';
+            outcome = exitPrice > entryPrice ? 'win' : 'loss';
           } else if (trade.recommendationDirection === 'put') {
-            outcome = exitPrice < trade.entryPrice ? 'win' : 'loss';
+            outcome = exitPrice < entryPrice ? 'win' : 'loss';
           }
 
-          // 📝 Update trade with result and exit price
+          // 📉 Calculate ROI as a percentage
+          const percentageChange = ((exitPrice - entryPrice) / entryPrice) * 100;
+
+          // 🧾 Update trade object with evaluation metadata
           trade.exitPrices = trade.exitPrices || {};
           trade.exitPrices[ticker] = exitPrice;
+
+          trade.evaluationSnapshot = trade.evaluationSnapshot || {};
+          trade.evaluationSnapshot[ticker] = closeData; // store entire Polygon snapshot for audit
+
+          trade.percentageChange = percentageChange;
           trade.outcome = outcome;
-          trade.markModified('exitPrices'); // Required for nested field
+          trade.evaluatedAt = new Date(); // track when evaluation happened
+
+          // Ensure nested objects get saved
+          trade.markModified('exitPrices');
+          trade.markModified('evaluationSnapshot');
 
           await trade.save();
-          console.log(`✅ ${ticker} evaluated — Outcome: ${outcome}, Exit: $${exitPrice}`);
-        } catch (err) {
-          // 🚨 Log any evaluation errors for transparency
-          console.error(`❌ Error evaluating ${ticker}:`, err.message);
 
+          console.log(`✅ ${ticker} → Outcome: ${outcome}, Exit: $${exitPrice.toFixed(2)}, ROI: ${percentageChange.toFixed(2)}%`);
+
+        } catch (err) {
+          console.error(`❌ Evaluation error for ${ticker}:`, err.message);
+
+          // 🛠️ Record the evaluation error inside the document
           trade.evaluationErrors = trade.evaluationErrors || [];
           trade.evaluationErrors.push({
             ticker,
@@ -91,9 +133,9 @@ async function evaluateExpiredTrades() {
       }
     }
 
-    console.log('🏁 Finished evaluating all expired trades');
+    console.log('🏁 Evaluation complete — all eligible trades reviewed');
   } catch (err) {
-    console.error('❌ Evaluation failed:', err.message);
+    console.error('❌ Critical evaluation failure:', err.message);
   }
 }
 
