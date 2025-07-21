@@ -10,10 +10,12 @@ const RecommendationPanel: React.FC<Props> = ({ analysis }) => {
 
   const [showCongress, setShowCongress] = useState<boolean>(false);
 
+  // 🔍 Log analysis payload on change
   useEffect(() => {
     console.log('[DEBUG] analysis payload:', analysis);
   }, [analysis]);
 
+  // 🧩 Destructure all expected fields from analysis object
   const {
     option,
     entryPrice,
@@ -30,12 +32,15 @@ const RecommendationPanel: React.FC<Props> = ({ analysis }) => {
     expectedROI
   } = analysis;
 
+  // 💲 Format numerical values for display (currency or decimals)
   const format = (val: number | undefined | null, prefix = '$', digits = 2) =>
     val === 0 || (typeof val === 'number' && isFinite(val)) ? `${prefix}${val.toFixed(digits)}` : 'N/A';
 
+  // 🔁 Backup values if target/stop are missing
   const fallbackTarget = entryPrice ? `${(entryPrice * 1.05).toFixed(2)} (est.)` : 'N/A';
   const fallbackStop = entryPrice ? `${(entryPrice * 0.95).toFixed(2)} (est.)` : 'N/A';
 
+  // 🎯 Style badges based on confidence level
   const confidenceBadge = (level: string | undefined) => {
     switch (level?.toLowerCase()) {
       case 'very high':
@@ -49,6 +54,7 @@ const RecommendationPanel: React.FC<Props> = ({ analysis }) => {
     }
   };
 
+  // 🎨 Color recommendation direction (CALL/PUT)
   const recommendationColor = (dir: string | undefined) => {
     switch (dir?.toLowerCase()) {
       case 'call':
@@ -86,16 +92,12 @@ const RecommendationPanel: React.FC<Props> = ({ analysis }) => {
           <div className="bg-black bg-opacity-50 rounded p-3">
             <h6 className="fw-bold text-uppercase mb-1">Sentiment Headlines</h6>
             {sentimentSummary ? (
-            <ul className="mb-0 small">
-  {sentimentSummary
-    .split('\n')
-    .map((line, i) => {
-      const cleanLine = line.trim().replace(/^[-•]+/, '').trim(); // Remove leading dashes or bullets
-      return cleanLine ? <li key={i}> {cleanLine}</li> : null;    // Skip empty lines
-    })}
-</ul>
-
-
+              <ul className="mb-0 small">
+                {sentimentSummary.split('\n').map((line, i) => {
+                  const cleanLine = line.trim().replace(/^[-•]+/, '').trim();
+                  return cleanLine ? <li key={i}> {cleanLine}</li> : null;
+                })}
+              </ul>
             ) : (
               <p className="text-light-emphasis">N/A</p>
             )}
@@ -109,28 +111,62 @@ const RecommendationPanel: React.FC<Props> = ({ analysis }) => {
         <div className="col-md-4 col-sm-6"><h6>🎯 Target Price</h6><p>{targetPrice ? format(targetPrice) : fallbackTarget}</p></div>
         <div className="col-md-4 col-sm-6"><h6>🛑 Stop Loss</h6><p>{stopLoss ? format(stopLoss) : fallbackStop}</p></div>
         <div className="col-md-4 col-sm-6"><h6>📊 Break-Even</h6><p>{format(breakEvenPrice)}</p></div>
-        <div className="col-md-4 col-sm-6"><h6>📆 Expiry</h6><p>{expiryDate ? new Date(expiryDate).toLocaleDateString() : 'N/A'}</p></div>
-        <div className="col-md-4 col-sm-6"><h6>💹 ROI</h6><p>{typeof expectedROI === 'number' ? `${expectedROI.toFixed(2)}%` : 'N/A'}</p></div>
+
+        {/* ✅ FIXED: Use 'T00:00:00' to avoid timezone shift */}
+        <div className="col-md-4 col-sm-6">
+          <h6>📆 Expiry</h6>
+          <p>{expiryDate ? new Date(`${expiryDate}T00:00:00`).toLocaleDateString() : 'N/A'}</p>
+        </div>
+
+        <div className="col-md-4 col-sm-6">
+          <h6>💹 ROI</h6>
+          <p>{typeof expectedROI === 'number' ? `${expectedROI.toFixed(2)}%` : 'N/A'}</p>
+        </div>
       </div>
 
-      {/* 📈 Technical Indicators */}
-    <div className="row g-3 mb-4">
-  <div className="col-md-4 col-sm-6"><h6>📊 RSI</h6><p>{format(indicators?.rsi, '', 2)}</p></div>
-  <div className="col-md-4 col-sm-6"><h6>💵 VWAP</h6><p>{format(indicators?.vwap)}</p></div>
-  <div className="col-md-4 col-sm-6"><h6>📈 MACD</h6><p>{format(indicators?.macd?.macd, '', 2)}</p></div>
-  <div className="col-md-4 col-sm-6"><h6>📉 Signal</h6><p>{format(indicators?.macd?.signal, '', 2)}</p></div>
-  <div className="col-md-4 col-sm-6"><h6>📊 Histogram</h6><p>{format(indicators?.macd?.histogram, '', 2)}</p></div>
+      {/* 📈 Technical Indicators (with definitions) */}
+<div className="row g-3 mb-4">
+  <div className="col-md-4 col-sm-6">
+    <h6>📊 RSI <small className="text-light-emphasis">(Relative Strength Index)</small></h6>
+    <p>{format(indicators?.rsi, '', 2)}</p>
+  </div>
+
+  <div className="col-md-4 col-sm-6">
+    <h6>💵 VWAP <small className="text-light-emphasis">(Volume Weighted Average Price)</small></h6>
+    <p>{format(indicators?.vwap)}</p>
+  </div>
+
+  <div className="col-md-4 col-sm-6">
+    <h6>📈 MACD <small className="text-light-emphasis">(Moving Average Convergence Divergence)</small></h6>
+    <p>{format(indicators?.macd?.macd, '', 2)}</p>
+  </div>
+
+  <div className="col-md-4 col-sm-6">
+    <h6>📉 Signal <small className="text-light-emphasis">(MACD Signal Line)</small></h6>
+    <p>{format(indicators?.macd?.signal, '', 2)}</p>
+  </div>
+
+  <div className="col-md-4 col-sm-6">
+    <h6>📊 Histogram <small className="text-light-emphasis">(MACD - Signal)</small></h6>
+    <p>{format(indicators?.macd?.histogram, '', 2)}</p>
+  </div>
 </div>
 
 
-      {/* 🎟️ Option Contract */}
+      {/* 🎟️ Option Contract Details */}
       {option && (
         <div className="mb-4">
           <h5 className="fw-semibold mb-3">🎟️ Option Contract Details</h5>
           <ul className="list-unstyled small">
             <li><strong>Type:</strong> {option.contract_type?.toUpperCase() || 'N/A'}</li>
             <li><strong>Strike:</strong> {format(option.strike_price)}</li>
-            <li><strong>Expires:</strong> {option.expiration_date ? new Date(option.expiration_date).toLocaleDateString() : 'N/A'}</li>
+
+            {/* ✅ FIXED: Use pinned midnight for expiration date */}
+            <li>
+              <strong>Expires:</strong>{' '}
+              {option.expiration_date ? new Date(`${option.expiration_date}T00:00:00`).toLocaleDateString() : 'N/A'}
+            </li>
+
             <li>
               <strong>Cost:</strong> {format(option.ask ? option.ask * 100 : undefined)}
               <span
@@ -150,7 +186,7 @@ const RecommendationPanel: React.FC<Props> = ({ analysis }) => {
         </div>
       )}
 
-      {/* 🧠 GPT Explanation */}
+      {/* 🧠 GPT Rationale */}
       <div className="border-top border-secondary pt-4 mb-4">
         <h5 className="fw-bold mb-2">🧠 GPT Rationale</h5>
         <p className="text-light-emphasis">{gptResponse || 'No explanation available.'}</p>
