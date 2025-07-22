@@ -56,16 +56,22 @@ async function evaluateExpiredTrades() {
 
     console.log(`🕒 Starting trade evaluation at ${now.toISOString()}`);
 
-    // 🗃 Query all expired trades that haven’t been evaluated yet
+
+    // 🗃 Query all trades that are expired (regardless of outcome)
     const trades = await TradeRecommendation.find({
-      outcome: 'pending',
-      expiryDate: { $lte: now },
       entryPrice: { $ne: null }
+    }).lean(); // lean for performance (optional)
+
+    const expired = trades.filter(trade => {
+      const expDate = new Date(trade.expiryDate);
+      return expDate <= now;
     });
+
+
 
     console.log(`📊 Found ${trades.length} expired trades to evaluate`);
 
-    for (const trade of trades) {
+    for (const trade of expired) {
       // Format the expiration date into YYYY-MM-DD for the API
       const expiry = new Date(trade.expiryDate);
       const yyyy = expiry.getFullYear();

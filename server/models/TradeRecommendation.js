@@ -4,50 +4,50 @@ import mongoose from 'mongoose';
 
 /**
  * 🧠 TradeRecommendation Schema
- * Stores GPT-based trade ideas, technical indicators, and contract details
+ * Stores GPT-based trade ideas, technical indicators, and option contract details.
+ * Used for analysis, history tracking, and evaluation of outcomes.
  */
 const tradeRecommendationSchema = new mongoose.Schema({
   // 🧾 User input
-  tickers: [String],  // User's watchlist
-  capital: { type: Number, required: true },   // User’s available capital
+  tickers: [String],                         // Watchlist tickers (e.g., ['AAPL', 'TSLA'])
+  capital: { type: Number, required: true }, // User’s available capital for trade
   riskTolerance: {
     type: String,
     enum: ['low', 'medium', 'high'],
-    default: 'medium'
+    default: 'medium'                        // Used to determine contract expiry length
   },
 
-  // 📈 Stock price + ROI assumptions
-  entryPrice: Number,              // Underlying stock’s price at time of scan
-  estimatedCost: Number,           // Cost of the option (contract * 100)
-  breakEvenPrice: Number,          // Strike + cost (for calls)
-  expectedROI: Number,             // Estimated ROI at target price
+  // 📈 Stock price + cost assumptions
+  entryPrice: Number,                        // Price of the underlying stock at time of recommendation
+  estimatedCost: Number,                     // Cost to purchase 1 contract (price * 100)
+  breakEvenPrice: Number,                    // Entry price + cost (for calls) or - cost (for puts)
+  expectedROI: Number,                       // ROI at target price (estimated)
 
   // ⏳ Option contract logic
-  expiryDate: String,
-  targetPrice: Number,             // GPT predicted price target
-  stopLoss: Number,                // Stop loss threshold
+  expiryDate: { type: Date, required: true },         // Expiration date of trade (used for evaluation)
+  targetPrice: Number,                                 // GPT-predicted target for underlying
+  stopLoss: Number,                                    // Estimated exit price to cut loss
 
+  // 🎟️ Option contract details
   option: {
-    ticker: String,
-    strike_price: Number,
-    expiration_date: String,
+    ticker: String,                                    // Option symbol (e.g., "O:AMD250719C00090000")
+    strike_price: Number,                              // Strike price of contract
+    expiration_date: { type: Date },                   // Contract expiration (ISO date string)
     contract_type: {
       type: String,
       enum: ['call', 'put']
     },
-    ask: Number,
-    bid: Number,
-    delta: Number,
-    gamma: Number,
-    theta: Number,
-    vega: Number,
+    ask: Number,                                       // Ask price
+    bid: Number,                                       // Bid price
+    delta: Number, gamma: Number,
+    theta: Number, vega: Number,
     implied_volatility: Number,
     open_interest: Number
   },
 
   // 🤖 GPT prompt + response
-  gptPrompt: String,
-  gptResponse: String,
+  gptPrompt: String,                                   // Full GPT prompt for auditing
+  gptResponse: String,                                 // GPT-generated reasoning and recommendation
   recommendationDirection: {
     type: String,
     enum: ['call', 'put', 'hold', 'avoid']
@@ -55,34 +55,39 @@ const tradeRecommendationSchema = new mongoose.Schema({
   confidence: {
     type: String,
     enum: ['low', 'medium', 'high'],
-    default: 'medium'
+    default: 'medium'                                  // GPT response certainty
   },
 
   // 📊 Technical indicator snapshot
   indicators: {
-    rsi: Number,
-    vwap: Number,
+    rsi: Number,                                        // Relative Strength Index
+    vwap: Number,                                       // Volume Weighted Average Price
     macd: {
       macd: Number,
       signal: Number,
-      histogram: Number
+      histogram: Number                                // MACD histogram = macd - signal
     }
   },
 
   // 🏛️ Contextual data
-  congressTrades: String,           // Optional HTML string
-  sentimentSummary: String,         // News headline summary
+  congressTrades: String,                              // Optional list of congressional trades
+  sentimentSummary: String,                            // Summary of news sentiment from GPT
 
-  // ✅ Trade result tracking
+  // ✅ Trade evaluation results
   outcome: {
     type: String,
     enum: ['win', 'loss', 'pending'],
-    default: 'pending'
+    default: 'pending'                                 // Set to win/loss after expiry is evaluated
   },
+  exitPrices: Object,                                  // Exit prices for each ticker
+  evaluationSnapshot: Object,                          // Raw Polygon API response at evaluation time
+  percentageChange: Number,                            // % change from entry → exit
+  evaluatedAt: Date,                                   // Timestamp when trade was evaluated
+  evaluationErrors: Array,                             // Optional error log during evaluation
 
-  // 🗒️ Notes for future UX input
-  userNotes: String
+  // 🗒️ Notes and annotations
+  userNotes: String                                    // Free-form notes (e.g., strategy or feedback)
 
-}, { timestamps: true }); // auto adds createdAt and updatedAt
+}, { timestamps: true }); // ⏱️ Adds createdAt and updatedAt fields
 
 export default mongoose.model('TradeRecommendation', tradeRecommendationSchema);

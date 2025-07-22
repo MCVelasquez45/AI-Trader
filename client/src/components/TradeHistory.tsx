@@ -1,10 +1,13 @@
-// ✅ Full Updated TradeHistory.tsx — With Comments + Logging
+// ✅ Full Updated TradeHistory.tsx — Fully Commented + Logged
+
 import React, { useEffect, useState } from 'react';
 import { Table, Accordion, Button } from 'react-bootstrap';
 import { getAllTrades } from '../api/tradeApi';
-import type { TradeRecord } from '../types/TradeHistory';
+import type { TradeRecord, OptionContract } from '../types/TradeHistory';
 
-// 🧠 Helper: Renders clickable congressional links and fallback link to CapitolTrades
+// ============================
+// 🔗 Renders clickable congressional links or fallback
+// ============================
 const renderCongressTrades = (text?: string) => {
   if (!text) {
     return (
@@ -45,16 +48,6 @@ const renderCongressTrades = (text?: string) => {
         }
         return <div key={index}>{line}</div>;
       })}
-      <div className="mt-2">
-        <a
-          href="https://www.capitoltrades.com/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-info text-decoration-underline"
-        >
-          🔍 View full congressional data at CapitolTrades.com
-        </a>
-      </div>
     </div>
   );
 };
@@ -63,23 +56,25 @@ const TradeHistory: React.FC = () => {
   const [trades, setTrades] = useState<TradeRecord[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
 
-  // 🚀 Fetch trades on component mount
+  // ============================
+  // 🚀 Load trade history on mount
+  // ============================
   useEffect(() => {
     const fetchTrades = async () => {
       try {
         const data = await getAllTrades();
-        console.log('📥 API response:', data);
+        console.log('📥 Fetched trades:', data);
 
         if (!Array.isArray(data)) {
-          console.error('❌ Expected an array from getAllTrades, got:', typeof data);
+          console.error('❌ Expected array from getAllTrades, got:', typeof data);
           return;
         }
 
         if (data.length === 0) {
-          console.warn('⚠️ No trade history found.');
+          console.warn('⚠️ No trade history returned');
         }
 
-        setTrades(data.reverse()); // Latest trades first
+        setTrades(data.reverse()); // Most recent first
       } catch (err) {
         console.error('❌ Failed to fetch trades:', err);
       }
@@ -87,7 +82,9 @@ const TradeHistory: React.FC = () => {
     fetchTrades();
   }, []);
 
-  // 💵 Helpers to format values
+  // ============================
+  // 💵 Format helpers
+  // ============================
   const formatDollar = (val?: number | null) =>
     typeof val === 'number' ? `$${val.toFixed(2)}` : 'N/A';
 
@@ -120,6 +117,8 @@ const TradeHistory: React.FC = () => {
         <tbody>
           {trades.map((trade) => {
             const key = trade._id || trade.tickers.join('-');
+            const opt = (trade.option ?? {}) as OptionContract;
+            console.log(`🧾 Option Contract for ${trade.tickers.join(', ')}:`, opt);
 
             return (
               <React.Fragment key={key}>
@@ -131,7 +130,12 @@ const TradeHistory: React.FC = () => {
                   </td>
                   <td>{trade.confidence?.toUpperCase() || 'N/A'}</td>
                   <td>{formatDollar(trade.entryPrice)}</td>
-                  <td>{new Date(trade.expiryDate).toLocaleDateString()}</td>
+                  <td>
+  {trade.option?.expiration_date
+    ? trade.option.expiration_date
+    : new Date(trade.expiryDate).toISOString().split('T')[0]}
+</td>
+
                   <td>{trade.outcome ?? 'pending'}</td>
                   <td>
                     <Button
@@ -149,30 +153,41 @@ const TradeHistory: React.FC = () => {
                     <td colSpan={8}>
                       <Accordion defaultActiveKey="0">
                         <Accordion.Item eventKey="0">
-                          <Accordion.Header>🧠 GPT Details for {trade.tickers.join(', ')}</Accordion.Header>
+                          <Accordion.Header>
+                            🧐 GPT Details for {trade.tickers.join(', ')}
+                          </Accordion.Header>
                           <Accordion.Body className="bg-black text-light">
                             <div className="row">
+                              {/* 🧠 Basic Recommendation Info */}
                               <div className="col-md-4 col-sm-6">
                                 <p><strong>📣 Recommendation:</strong> {trade.recommendationDirection.toUpperCase()}</p>
                                 <p><strong>💪 Confidence:</strong> {trade.confidence}</p>
-                                <p><strong>📅 Expiry:</strong> {new Date(trade.expiryDate).toLocaleDateString()}</p>
+
+                                <p><strong>🗓️ GPT Expiry Date:</strong> {trade.expiryDate}</p>
                                 <p><strong>📍 Entry:</strong> {formatDollar(trade.entryPrice)}</p>
                                 <p><strong>🎯 Target:</strong> {trade.targetPrice !== undefined ? formatDollar(trade.targetPrice) : fallbackTarget(trade.entryPrice)}</p>
                                 <p><strong>🛑 Stop:</strong> {trade.stopLoss !== undefined ? formatDollar(trade.stopLoss) : fallbackStop(trade.entryPrice)}</p>
                               </div>
+
+                              {/* 📊 Technical Indicators */}
                               <div className="col-md-4 col-sm-6">
                                 <p><strong>📊 RSI:</strong> {formatNumber(trade.indicators?.rsi)}</p>
                                 <p><strong>📉 VWAP:</strong> {formatNumber(trade.indicators?.vwap)}</p>
                                 <p><strong>📈 MACD Histogram:</strong> {formatNumber(trade.indicators?.macd?.histogram)}</p>
                               </div>
+
+                              {/* 🎟️ Option Contract Details */}
                               <div className="col-md-4 col-sm-6">
                                 <p><strong>📈 Outcome:</strong> {trade.outcome ?? 'pending'}</p>
                                 {trade.option && (
                                   <>
                                     <hr />
-                                    <p><strong>🎟️ Option:</strong> Strike ${trade.option.strike}, Exp {new Date(trade.option.expiration).toLocaleDateString()}</p>
-                                    {trade.option.contract && <p><strong>🧾 Contract:</strong> {trade.option.contract}</p>}
-                                    {trade.option.estimatedCost && <p><strong>💰 Estimated Cost:</strong> {formatDollar(trade.option.estimatedCost)}</p>}
+                                    <p><strong>🎟️ Option:</strong> Strike ${formatNumber(opt.strike_price)}, Exp {opt.expiration_date || 'N/A'}</p>
+                                    <p><strong>📓 Contract:</strong> {opt.ticker || 'N/A'}</p>
+                                    <p><strong>💰 Ask:</strong> {formatDollar(opt.ask)}</p>
+                                    <p><strong>💰 Bid:</strong> {formatDollar(opt.bid)}</p>
+                                    <p><strong>📊 Delta:</strong> {formatNumber(opt.delta)}</p>
+                                    <p><strong>📈 IV:</strong> {formatNumber(opt.implied_volatility)}</p>
                                   </>
                                 )}
                               </div>
@@ -184,18 +199,16 @@ const TradeHistory: React.FC = () => {
 
                             <Accordion className="mt-3">
                               <Accordion.Item eventKey="0">
-                                <Accordion.Header>🗞️ News Sentiment</Accordion.Header>
+                                <Accordion.Header>🗳️ News Sentiment</Accordion.Header>
                                 <Accordion.Body>
-                                  {trade.sentimentSummary
-                                    ? (
-                                      <ul className="small">
-                                        {trade.sentimentSummary.split('\n').map((line, i) => {
-                                          const clean = line.trim().replace(/^[-•\s]+/, '');
-                                          return clean ? <li key={i}>• {clean}</li> : null;
-                                        })}
-                                      </ul>
-                                    )
-                                    : 'N/A'}
+                                  {trade.sentimentSummary ? (
+                                    <ul className="small">
+                                      {trade.sentimentSummary.split('\n').map((line, i) => {
+                                        const clean = line.trim().replace(/^[-•\s]+/, '');
+                                        return clean ? <li key={i}>• {clean}</li> : null;
+                                      })}
+                                    </ul>
+                                  ) : 'N/A'}
                                 </Accordion.Body>
                               </Accordion.Item>
                               <Accordion.Item eventKey="1">

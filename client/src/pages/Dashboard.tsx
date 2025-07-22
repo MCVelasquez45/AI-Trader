@@ -234,7 +234,7 @@ const Dashboard: React.FC = () => {
           {/* 🕰️ Trade History */}
           {showHistory && (
             <div className="mt-5">
-              <div className="bg-secondary bg-opacity-75 rounded p-4 shadow border border-dark">
+              <div className=" bg-opacity-75 rounded p-4 shadow border border-dark">
                 <h2 className="fs-5 fw-semibold mb-3 text-success">🕰️ GPT Trade History</h2>
                 <TradeHistory />
               </div>
