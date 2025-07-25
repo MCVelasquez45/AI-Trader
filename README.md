@@ -18,7 +18,7 @@
 ## ⚙️ Tech Stack
 
 ### Backend
-- Node.js + Express.js
+- Node.js(v20.19.3) + Express.js
 - MongoDB + Mongoose
 - Polygon.io, Yahoo Finance APIs
 - Puppeteer.js for scraping
