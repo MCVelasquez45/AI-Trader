@@ -1,5 +1,7 @@
 // ✅ File: utils/openaiAssistant.js
-
+// ✅ Load .env variables early
+import dotenv from 'dotenv';
+dotenv.config(); // ⬅️ This ensures process.env.OPENAI_API_KEY is defined``
 import OpenAI from 'openai';
 
 // 🔐 Initialize OpenAI client
