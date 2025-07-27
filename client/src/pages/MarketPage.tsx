@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+// ✅ File: MarketPage.tsx — Modal-Ready & Fully Commented
+
+import React from 'react';
 import Layout from '../components/Layout';
 
 // ✅ Image Imports for Each Step
@@ -24,9 +26,14 @@ import CronJob from '../AssetLogs/CronJob.png';
 import vercelDeploy from '../AssetLogs/Vercel_Frontend_Deploy.png';
 import renderDeploy from '../AssetLogs/render.com_deploy.png';
 
-const MarketPage: React.FC = () => {
+// 🧾 Props to receive modal toggle control from App.tsx
+type MarketPageProps = {
+  setShowAuthModal: React.Dispatch<React.SetStateAction<boolean>>;
+};
+
+const MarketPage: React.FC<MarketPageProps> = ({ setShowAuthModal }) => {
   return (
-    <Layout>
+    <Layout setShowAuthModal={setShowAuthModal}>
       <main className="container py-5">
         {/* 🧭 Intro Section */}
         <section className="mb-5 text-center">

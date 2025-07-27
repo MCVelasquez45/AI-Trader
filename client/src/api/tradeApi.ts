@@ -1,76 +1,100 @@
-import axios from 'axios';
+// ✅ File: src/api/tradeApi.ts
+
+import { axiosInstance } from './axiosInstance';
 import type { RiskLevel } from '../types/TradeForm';
 import type { ValidateTickerResponse } from '../types/OptionContract';
 
-const API_BASE =
-  import.meta.env.DEV
-    ? 'http://localhost:4545/api'
-    : (import.meta.env.VITE_API_URL || '/api').trim();
-
-console.log('🔁 API Base URL:', API_BASE);
-
-
-
+// ----------------------
+// 📡 POST: /analyze-trade
+// ----------------------
 type TradePayload = Record<string, any>;
 
 export const analyzeTrade = async (payload: TradePayload) => {
-  console.log('📤 Sending trade payload to /analyze-trade:', payload);
+  console.log('📤 [analyzeTrade] Sending trade payload:', payload);
   try {
-    const res = await axios.post(`${API_BASE}/analyze-trade`, payload);
-    console.log('📥 Trade analysis response:', res?.data);
+    const res = await axiosInstance.post('/analyze-trade', payload);
+    console.log('📥 [analyzeTrade] Response:', res?.data);
     return res?.data;
   } catch (error: any) {
     const errMsg = error?.response?.data || error?.message || 'Unknown error';
-    console.error('❌ analyzeTrade failed:', errMsg);
+    console.error('❌ [analyzeTrade] Request failed:', errMsg);
     throw new Error(errMsg);
   }
 };
+
+// ----------------------
+// 📡 GET: /trades
+// ----------------------
 export const getAllTrades = async () => {
+  console.log('📤 [getAllTrades] Requesting all trades...');
   try {
-    const response = await axios.get(`${API_BASE}/trades`);
+    const response = await axiosInstance.get('/trades');
     if (!Array.isArray(response.data)) {
-      console.warn('⚠️ Invalid response:', response.data);
+      console.warn('⚠️ [getAllTrades] Invalid response format:', response.data);
       return [];
     }
+    console.log('📥 [getAllTrades] Trades received:', response.data.length);
     return response.data;
   } catch (error: any) {
     const errMsg = error?.response?.data?.error || error.message || 'Unknown error';
-    console.error('❌ getAllTrades failed:', errMsg);
+    console.error('❌ [getAllTrades] Request failed:', errMsg);
     return [];
   }
 };
 
-
-
+// ----------------------
+// 📡 POST: /validate-ticker
+// ----------------------
 export const validateTicker = async (
   ticker: string,
   capital: number,
   riskTolerance: RiskLevel
 ): Promise<ValidateTickerResponse | null> => {
-  console.log('🚀 validateTicker():', { ticker, capital, riskTolerance });
+  console.log('🚀 [validateTicker] Params:', { ticker, capital, riskTolerance });
 
   if (!ticker || typeof ticker !== 'string') {
-    console.warn('⚠️ Invalid ticker:', ticker);
+    console.warn('⚠️ [validateTicker] Invalid ticker:', ticker);
     return null;
   }
 
   if (isNaN(capital) || capital <= 0) {
-    console.warn('⚠️ Invalid capital:', capital);
+    console.warn('⚠️ [validateTicker] Invalid capital:', capital);
     return null;
   }
 
   try {
-    const res = await axios.post(`${API_BASE}/validate-ticker`, {
+    const res = await axiosInstance.post('/validate-ticker', {
       ticker,
       capital,
       riskTolerance,
     });
 
-    console.log('📦 validateTicker response from backend:', res?.data);
+    console.log('📦 [validateTicker] Backend response:', res?.data);
     return res?.data || null;
   } catch (error: any) {
     const errMsg = error?.response?.data || error?.message || 'Unknown error';
-    console.error(`❌ validateTicker failed for ${ticker}:`, errMsg);
+    console.error(`❌ [validateTicker] Failed for ${ticker}:`, errMsg);
     return null;
   }
+};
+
+// ----------------------
+// 🔐 GET: /auth/current-user
+// ----------------------
+export const getCurrentUser = async () => {
+  try {
+    const res = await axiosInstance.get('/auth/current-user');
+    console.log('👤 [getCurrentUser] Response:', res?.data);
+    return res?.data;
+  } catch (error: any) {
+    console.error('❌ [getCurrentUser] Failed:', error?.message);
+    return null;
+  }
+};
+
+// ----------------------
+// 🔐 OAuth: /auth/google
+// ----------------------
+export const getGoogleLoginUrl = () => {
+  return `/auth/google`; // ✅ Uses Vite proxy + Express route
 };
