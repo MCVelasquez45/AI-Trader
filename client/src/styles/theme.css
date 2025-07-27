@@ -57,3 +57,11 @@
   color: #adb5bd !important; /* light gray */
   opacity: 1;
 }
+
+
+/* Prevent horizontal scroll caused by whitespace around app */
+body {
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}

@@ -67,15 +67,23 @@ const RecommendationPanel: React.FC<Props> = ({ analysis }) => {
   };
 
   return (
-    <div className="bg-dark bg-opacity-75 rounded p-4 shadow border border-secondary">
+    <div className="container-fluid px-2 px-md-4">
+      <div className="bg-dark bg-opacity-75 rounded p-4 shadow border border-secondary">
       {/* 🔹 Header */}
-      <div className="d-flex justify-content-between align-items-start mb-4">
-        <h3 className="h4 mb-0">
-          Trade Analysis: <span className="text-info">{option?.ticker || 'N/A'}</span>
-        </h3>
-        <span className={`badge px-3 py-2 ${confidenceBadge(confidence)}`}>
-          Confidence: {confidence?.toUpperCase() || 'N/A'}
-        </span>
+      <div className="row mb-4">
+        <div className="col-12 col-md-8">
+          <h3 className="h4 mb-2 mb-md-0">
+            Trade Analysis: <span className="text-info">{option?.ticker || 'N/A'}</span>
+          </h3>
+        </div>
+        <div className="col-12 col-md-4 text-md-end">
+          <span
+            className={`badge px-3 py-2 ${confidenceBadge(confidence)}`}
+            style={{ fontSize: '0.95rem', whiteSpace: 'normal', wordBreak: 'break-word' }}
+          >
+            Confidence: {confidence?.toUpperCase() || 'N/A'}
+          </span>
+        </div>
       </div>
 
       {/* 🧠 Recommendation & Sentiment */}
@@ -219,6 +227,7 @@ const RecommendationPanel: React.FC<Props> = ({ analysis }) => {
             }}
           />
         )}
+      </div>
       </div>
     </div>
   );
