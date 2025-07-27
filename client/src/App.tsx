@@ -1,37 +1,44 @@
 // ✅ File: App.tsx
-
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ContractProvider } from './contexts/ContractContext';
+import { AuthProvider } from './contexts/AuthContext';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
-import 'bootstrap/dist/js/bootstrap.bundle.min'; // Required for tooltips/popovers
+import 'bootstrap/dist/js/bootstrap.bundle.min';
 import './styles/theme.css';
 
-import Navbar from './components/Navbar';
+import UserAuthModal from './components/UserAuthModal';
 import Dashboard from './pages/Dashboard';
 import MarketPage from './pages/MarketPage';
 
 const App = () => {
-useEffect(() => {
-  const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-  tooltipTriggerList.forEach((el) => {
-    (window as any).bootstrap.Tooltip && new (window as any).bootstrap.Tooltip(el);
-  });
-}, []);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
+  useEffect(() => {
+    const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.forEach((el) => {
+      (window as any).bootstrap?.Tooltip && new (window as any).bootstrap.Tooltip(el);
+    });
+  }, []);
 
   console.log('🚀 <App> initialized — with routing and <Navbar>');
 
   return (
     <Router>
-      <ContractProvider>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/market" element={<MarketPage />} />
-        </Routes>
-      </ContractProvider>
+      <AuthProvider>
+        <ContractProvider>
+          {/* ✅ Global Modal */}
+          <UserAuthModal show={showAuthModal} onClose={() => setShowAuthModal(false)} />
+
+          {/* ✅ Routes pass modal toggle function */}
+          <Routes>
+            <Route path="/" element={<Dashboard setShowAuthModal={setShowAuthModal} />} />
+            <Route path="/dashboard" element={<Dashboard setShowAuthModal={setShowAuthModal} />} />
+            <Route path="/market" element={<MarketPage setShowAuthModal={setShowAuthModal} />} />
+          </Routes>
+        </ContractProvider>
+      </AuthProvider>
     </Router>
   );
 };

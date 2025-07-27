@@ -1,26 +1,40 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
-    "useDefineForClassFields": true,
-    "lib": ["DOM", "DOM.Iterable", "ESNext"],
-    "allowJs": false,
-    "skipLibCheck": true,
-    "esModuleInterop": false,
-    "allowSyntheticDefaultImports": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
-    "module": "ESNext",
-    "moduleResolution": "Node",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-    "jsx": "react-jsx",
-    "jsxImportSource": "react",
+    "target": "ESNext", // ✅ Use latest JS features
+    "useDefineForClassFields": true, // ✅ Modern class field behavior
+    "lib": ["DOM", "DOM.Iterable", "ESNext"], // ✅ Include browser + modern JS APIs
+
+    "allowJs": false, // 🚫 Don't allow .js files (TypeScript only)
+    "skipLibCheck": true, // ✅ Skip type checks on node_modules for performance
+    "esModuleInterop": false, // 🟨 Keep false unless you need default imports
+    "allowSyntheticDefaultImports": true, // ✅ Allow default imports even if no default is defined
+
+    "strict": true, // ✅ Enable all strict type-checking
+    "forceConsistentCasingInFileNames": true, // ✅ Enforce case-sensitive paths (important on Linux)
+
+    "module": "ESNext", // ✅ Use modern ES module syntax
+    "moduleResolution": "Node", // ✅ Resolve node_modules properly
+    "resolveJsonModule": true, // ✅ Allows importing JSON files
+    "isolatedModules": true, // ✅ Required for Vite + TSX
+
+    "noEmit": true, // 🚫 Don't emit .js files (only type check)
+
+    "jsx": "react-jsx", // ✅ Enable JSX transformation for React 17+
+    "jsxImportSource": "react", // ✅ Required for new JSX runtime
+
+    // ✅ Include global types like window.bootstrap, vite envs, etc.
     "types": ["react", "react-dom", "vite/client"],
 
-    // ✅ NEW: Ensures image and custom declaration files are respected
-    "typeRoots": ["./node_modules/@types", "./src/types"]
+    // ✅ Ensures custom declaration files and image imports work
+    "typeRoots": ["./node_modules/@types", "./types"]
   },
-  "include": ["src", "types"],
-  "exclude": ["node_modules"]
+
+  "include": [
+    "src",   // ✅ All source files
+    "types"  // ✅ Custom declaration files like Auth.d.ts
+  ],
+
+  "exclude": [
+    "node_modules" // 🚫 Always exclude dependencies
+  ]
 }

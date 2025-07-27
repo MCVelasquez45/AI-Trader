@@ -1,4 +1,3 @@
-// vite.config.ts
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -8,9 +7,16 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:4545', // 👈 your Express backend
+        target: 'http://localhost:4545',
         changeOrigin: true,
         secure: false,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+      '/auth': {
+        target: 'http://localhost:4545',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/auth/, '/auth'),
       },
     },
   },

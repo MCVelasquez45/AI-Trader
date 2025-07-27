@@ -1,3 +1,4 @@
+// ✅ File: Dashboard.tsx — Fully Commented & Modal-Ready
 import React, { useState } from 'react';
 import Layout from '../components/Layout';
 import { BsBank, BsBarChartFill, BsChatDotsFill } from 'react-icons/bs';
@@ -9,23 +10,19 @@ import TradeHistory from '../components/TradeHistory';
 
 import type { AnalysisData } from '../types/Analysis';
 
-type AnalysisResultPayload = {
-  tickers: string[];
-  capital: number;
-  riskTolerance: string;
-  validatedContracts: any;
-  result: any;
+// ✅ Props type for controlling modal visibility
+type DashboardProps = {
+  setShowAuthModal: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
-const Dashboard: React.FC = () => {
+const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
   const [analysisData, setAnalysisData] = useState<Record<string, AnalysisData>>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [activeTicker, setActiveTicker] = useState<string | null>(null);
   const [unaffordableTickers, setUnaffordableTickers] = useState<string[]>([]);
   const [showHistory, setShowHistory] = useState<boolean>(false);
 
-  // ✅ Handle result passed from TradeForm
-  const handleAnalysisResult = async ({ tickers, capital, riskTolerance, result }: AnalysisResultPayload) => {
+  const handleAnalysisResult = async ({ tickers, capital, riskTolerance, result }: any) => {
     console.log('📬 Received analysis result from <TradeForm>');
     console.log('📈 Tickers:', tickers);
     console.log('💰 Capital:', capital);
@@ -57,7 +54,6 @@ const Dashboard: React.FC = () => {
         return;
       }
 
-      // ✅ Build new analysis data map
       const updatedAnalysis: Record<string, AnalysisData> = {};
       for (const trade of result.recommendations) {
         const details = trade.analysis || trade;
@@ -101,7 +97,6 @@ const Dashboard: React.FC = () => {
 
       const firstTicker = result.recommendations[0]?.ticker || result.recommendations[0]?.tickers?.[0];
 
-      // ✅ Force re-render by resetting state before updating
       setActiveTicker(null);
       setAnalysisData({});
 
@@ -120,9 +115,10 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <Layout>
+    <Layout setShowAuthModal={setShowAuthModal}>
       <main className="container py-5">
         <div className="mx-auto" style={{ maxWidth: '960px' }}>
+          {/* ✍️ Header */}
           <div className="mb-5 text-center">
             <h2 className="fs-2 fw-bold mb-3">Analyze Your Trade Opportunity</h2>
             <p className="text-secondary">
@@ -130,15 +126,15 @@ const Dashboard: React.FC = () => {
             </p>
           </div>
 
-          {/* 📾 Trade Form */}
+          {/* 🧾 Form to collect trade request */}
           <div id="trade-form-section" className="bg-opacity-75 rounded p-4 shadow border border-dark mb-4">
             <TradeForm onAnalyze={handleAnalysisResult} />
           </div>
 
-          {/* 🔄 Loading spinner */}
+          {/* 🔄 Spinner if loading */}
           {loading && <TypingDots />}
 
-          {/* ⚠️ Unaffordable Tickers */}
+          {/* ⚠️ Show errors */}
           {unaffordableTickers.length > 0 && (
             <div className="alert alert-warning">
               <strong>⚠️ Some tickers were skipped:</strong>
@@ -150,7 +146,7 @@ const Dashboard: React.FC = () => {
             </div>
           )}
 
-          {/* 🕳️ No Recommendation Yet */}
+          {/* 🚫 No active result */}
           {!loading && !activeTicker && (
             <div className="bg-dark bg-opacity-25 rounded-xl p-5 text-center border-4 border-dashed border-blue-800 mb-5">
               <svg width="64" height="64" className="text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -161,33 +157,30 @@ const Dashboard: React.FC = () => {
             </div>
           )}
 
-          {/* ✅ Show Recommendation */}
-         {!loading && Object.keys(analysisData).length > 0 && (
-  <>
-    <h3 className="text-light mb-4">📈 Trade Recommendations</h3>
+          {/* ✅ Recommendations section */}
+          {!loading && Object.keys(analysisData).length > 0 && (
+            <>
+              <h3 className="text-light mb-4">📈 Trade Recommendations</h3>
 
-    {/* 🔁 Tab Selector */}
-    <div className="d-flex flex-wrap gap-2 mb-3">
-      {Object.keys(analysisData).map((ticker) => (
-        <button
-          key={ticker}
-          className={`btn btn-sm fw-bold ${activeTicker === ticker ? 'btn-info' : 'btn-outline-secondary'}`}
-          onClick={() => setActiveTicker(ticker)}
-        >
-          {ticker}
-        </button>
-      ))}
-    </div>
+              <div className="d-flex flex-wrap gap-2 mb-3">
+                {Object.keys(analysisData).map((ticker) => (
+                  <button
+                    key={ticker}
+                    className={`btn btn-sm fw-bold ${activeTicker === ticker ? 'btn-info' : 'btn-outline-secondary'}`}
+                    onClick={() => setActiveTicker(ticker)}
+                  >
+                    {ticker}
+                  </button>
+                ))}
+              </div>
 
-    {/* 📈 Active Recommendation Panel */}
-    {activeTicker && analysisData[activeTicker] && (
-      <RecommendationPanel analysis={analysisData[activeTicker]} />
-    )}
-  </>
-)}
+              {activeTicker && analysisData[activeTicker] && (
+                <RecommendationPanel analysis={analysisData[activeTicker]} />
+              )}
+            </>
+          )}
 
-
-          {/* 📘 Feature Explanation */}
+          {/* 🧠 Feature bullets */}
           <section className="mt-5">
             <h2 className="h4 fw-bold mb-4 text-center">How It Works</h2>
             <div className="row g-4">
@@ -215,7 +208,7 @@ const Dashboard: React.FC = () => {
             </div>
           </section>
 
-          {/* 🚀 Call to Action */}
+          {/* CTA */}
           <section className="mt-5 text-center py-5 rounded border border-secondary" style={{ background: 'linear-gradient(to right, rgba(0, 123, 255, 0.1), rgba(138, 43, 226, 0.1))' }}>
             <h2 className="h4 fw-bold mb-3">Ready to Make Smarter Trades?</h2>
             <p className="text-secondary mb-4">Our AI-powered assistant combines multiple data sources to give you actionable options trading recommendations.</p>
@@ -231,17 +224,16 @@ const Dashboard: React.FC = () => {
             </button>
           </section>
 
-          {/* 🕰️ Trade History */}
+          {/* GPT History Toggle */}
           {showHistory && (
             <div className="mt-5">
-              <div className=" bg-opacity-75 rounded p-4 shadow border border-dark">
+              <div className="bg-opacity-75 rounded p-4 shadow border border-dark">
                 <h2 className="fs-5 fw-semibold mb-3 text-success">🕰️ GPT Trade History</h2>
                 <TradeHistory />
               </div>
             </div>
           )}
 
-          {/* 🧭 Toggle History */}
           <div className="text-center mt-4">
             <button className="btn btn-link text-primary text-decoration-none" onClick={() => setShowHistory(!showHistory)}>
               {showHistory ? 'Hide GPT History' : 'View GPT History'}
@@ -250,7 +242,6 @@ const Dashboard: React.FC = () => {
         </div>
       </main>
 
-      {/* 📜 Footer */}
       <footer className="py-4 border-top border-secondary mt-5">
         <div className="container text-center text-secondary">
           <p>© {new Date().getFullYear()} AI Options Trading Assistant. All rights reserved.</p>
