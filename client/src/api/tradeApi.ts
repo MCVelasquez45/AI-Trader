@@ -12,7 +12,7 @@ type TradePayload = Record<string, any>;
 export const analyzeTrade = async (payload: TradePayload) => {
   console.log('📤 [analyzeTrade] Sending trade payload:', payload);
   try {
-    const res = await axiosInstance.post('/analyze-trade', payload);
+    const res = await axiosInstance.post('/api/analyze-trade', payload);
     console.log('📥 [analyzeTrade] Response:', res?.data);
     return res?.data;
   } catch (error: any) {
@@ -28,7 +28,7 @@ export const analyzeTrade = async (payload: TradePayload) => {
 export const getAllTrades = async () => {
   console.log('📤 [getAllTrades] Requesting all trades...');
   try {
-    const response = await axiosInstance.get('/trades');
+    const response = await axiosInstance.get('/api/trades');
     if (!Array.isArray(response.data)) {
       console.warn('⚠️ [getAllTrades] Invalid response format:', response.data);
       return [];
@@ -63,7 +63,7 @@ export const validateTicker = async (
   }
 
   try {
-    const res = await axiosInstance.post('/validate-ticker', {
+    const res = await axiosInstance.post('/api/validate-ticker', {
       ticker,
       capital,
       riskTolerance,

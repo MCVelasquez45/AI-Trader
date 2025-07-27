@@ -1,26 +1,26 @@
-// ✅ File: client/components/UserAuthForm.tsx
+// ✅ File: client/src/components/UserAuthForm.tsx
 
 import React, { useState } from 'react';
 import axios from 'axios';
 import { AuthCredentials, AuthResponse } from '../types/Auth';
 
-// ✅ Props for determining mode (sign in or join) and success callback
 interface UserAuthFormProps {
-  mode: 'signin' | 'join';                      // 🔁 Determines POST /auth/login or /auth/signup
-  onSuccess: (user: AuthResponse['user']) => void; // ✅ Callback if login/signup successful
+  mode: 'signin' | 'join';
+  onSuccess: (user: AuthResponse['user']) => void;
 }
 
-// ✅ Auth Form Component
 const UserAuthForm: React.FC<UserAuthFormProps> = ({ mode, onSuccess }) => {
-  // 🔐 Form input state
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  
-  // ⚙️ Status state
+  // 🔐 Default credentials (demo account)
+  const defaultEmail = 'MarkCodes@gmail.com';
+  const defaultPassword = 'password123';
+
+  // 🔐 Prefill the form inputs with defaults
+  const [email, setEmail] = useState(defaultEmail);
+  const [password, setPassword] = useState(defaultPassword);
+
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // 🔁 Handle form submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -28,17 +28,16 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ mode, onSuccess }) => {
 
     const endpoint = mode === 'signin' ? '/auth/login' : '/auth/signup';
     const credentials: AuthCredentials = { email, password };
-
     console.log(`📤 Submitting to ${endpoint} with email: ${email}`);
 
     try {
       const res = await axios.post<AuthResponse>(endpoint, credentials, {
-        withCredentials: true, // ✅ Allows cookie/session handling
+        withCredentials: true,
       });
 
       if (res.data.success && res.data.user) {
         console.log('✅ Auth successful:', res.data.user);
-        onSuccess(res.data.user); // 🚀 Trigger success callback to close modal or store user
+        onSuccess(res.data.user);
       } else {
         console.warn('⚠️ Auth failed:', res.data.message);
         setErrorMsg(res.data.message || 'Something went wrong. Try again.');
@@ -53,7 +52,6 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ mode, onSuccess }) => {
 
   return (
     <form onSubmit={handleSubmit}>
-      {/* 📧 Email Input */}
       <div className="mb-3">
         <label htmlFor="email" className="form-label">📧 Email address</label>
         <input
@@ -66,7 +64,6 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ mode, onSuccess }) => {
         />
       </div>
 
-      {/* 🔑 Password Input */}
       <div className="mb-3">
         <label htmlFor="password" className="form-label">🔑 Password</label>
         <input
@@ -79,14 +76,12 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ mode, onSuccess }) => {
         />
       </div>
 
-      {/* ❌ Error Message Display */}
       {errorMsg && (
         <div className="alert alert-danger text-center">
           {errorMsg}
         </div>
       )}
 
-      {/* 🟢 Submit Button */}
       <button
         type="submit"
         className="btn btn-success w-100"
@@ -95,8 +90,8 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ mode, onSuccess }) => {
         {loading
           ? '⏳ Please wait...'
           : mode === 'signin'
-          ? '🔓 Sign In'
-          : '🆕 Join'}
+            ? '🔓 Sign In'
+            : '🆕 Join'}
       </button>
     </form>
   );
