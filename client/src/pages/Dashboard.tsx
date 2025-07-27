@@ -1,6 +1,6 @@
-// ✅ File: Dashboard.tsx — Fully Commented & Modal-Ready
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
+import { useAuth } from '../contexts/AuthContext';
 import { BsBank, BsBarChartFill, BsChatDotsFill } from 'react-icons/bs';
 
 import TradeForm from '../components/TradeForm';
@@ -21,6 +21,23 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
   const [activeTicker, setActiveTicker] = useState<string | null>(null);
   const [unaffordableTickers, setUnaffordableTickers] = useState<string[]>([]);
   const [showHistory, setShowHistory] = useState<boolean>(false);
+  const { user } = useAuth();
+
+  // 🔁 Load persisted recommendations from localStorage on page load
+  useEffect(() => {
+    const storedAnalysis = localStorage.getItem('analysisData');
+    const storedTicker = localStorage.getItem('activeTicker');
+    if (storedAnalysis) setAnalysisData(JSON.parse(storedAnalysis));
+    if (storedTicker) setActiveTicker(storedTicker);
+  }, []);
+
+  // 💾 Persist recommendations in localStorage
+  useEffect(() => {
+    if (Object.keys(analysisData).length > 0) {
+      localStorage.setItem('analysisData', JSON.stringify(analysisData));
+      if (activeTicker) localStorage.setItem('activeTicker', activeTicker);
+    }
+  }, [analysisData, activeTicker]);
 
   const handleAnalysisResult = async ({ tickers, capital, riskTolerance, result }: any) => {
     console.log('📬 Received analysis result from <TradeForm>');
@@ -49,12 +66,12 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
 
       if (!result?.recommendations?.length) {
         console.log('ℹ️ No recommendations returned');
-        setAnalysisData({});
-        setActiveTicker(null);
         return;
       }
 
-      const updatedAnalysis: Record<string, AnalysisData> = {};
+      // ✅ Merge new results into existing analysisData instead of replacing
+      const newAnalysis: Record<string, AnalysisData> = { ...analysisData };
+
       for (const trade of result.recommendations) {
         const details = trade.analysis || trade;
 
@@ -71,7 +88,7 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
 
         const ticker = rawTicker.toUpperCase();
 
-        updatedAnalysis[ticker] = {
+        newAnalysis[ticker] = {
           ticker,
           option: details.option,
           recommendationDirection: details.tradeType || details.recommendationDirection,
@@ -92,19 +109,16 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
           expiryDate: details.option?.expiration_date
         };
 
-        console.log(`✅ [${ticker}] Final Mapped Analysis:`, updatedAnalysis[ticker]);
+        console.log(`✅ [${ticker}] Final Mapped Analysis:`, newAnalysis[ticker]);
       }
 
-      const firstTicker = result.recommendations[0]?.ticker || result.recommendations[0]?.tickers?.[0];
+      const firstNewTicker = Object.keys(newAnalysis).find(
+        t => !(t in analysisData)
+      ) || Object.keys(newAnalysis)[0];
 
-      setActiveTicker(null);
-      setAnalysisData({});
-
-      setTimeout(() => {
-        setAnalysisData(updatedAnalysis);
-        setActiveTicker(firstTicker);
-        console.log('✅ Analysis complete. Active Ticker:', firstTicker);
-      }, 100);
+      setAnalysisData(newAnalysis);
+      setActiveTicker(firstNewTicker);
+      console.log('✅ Analysis complete. Active Ticker:', firstNewTicker);
     } catch (err: any) {
       const msg = err.response?.data?.error || err.message || 'Unknown error';
       alert(`❌ Failed to process analysis result: ${msg}`);
@@ -148,18 +162,66 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
 
           {/* 🚫 No active result */}
           {!loading && !activeTicker && (
-            <div className="bg-dark bg-opacity-25 rounded-xl p-5 text-center border-4 border-dashed border-blue-800 mb-5">
-              <svg width="64" height="64" className="text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              <h3 className="text-white text-lg font-semibold mb-3">No Analysis Yet</h3>
-              <p className="text-gray-400">Enter your details above to get started with your options trade analysis.</p>
-            </div>
+            user ? (
+              <div className="p-3 mb-5 mt-4 rounded border border-secondary bg-dark bg-opacity-50 text-start">
+                <div className="d-flex align-items-start gap-3">
+                  <img
+                    src={user?.avatar || 'https://via.placeholder.com/80'}
+                    alt={`${user?.name || 'User'}'s avatar`}
+                    className="rounded-circle border border-secondary"
+                    width={80}
+                    height={80}
+                  />
+                  <div className="pt-1">
+                    <h4 className="mb-1">{user?.name || 'AI-Trader Guest'}</h4>
+                    <p className="fst-italic text-info small mt-2">“Dream big. Trade smart.”</p>
+                    {user?.bio && <p className="text-secondary small mb-0">{user.bio}</p>}
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <p className="text-secondary small text-center">
+                    Fill out the form above to analyze your first options trade. Use the ticker, your capital, and risk level to get a recommendation.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-dark bg-opacity-25 rounded-xl p-5 text-center border-4 border-dashed border-blue-800 mb-5">
+                <svg width="64" height="64" className="text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <h3 className="text-white text-lg font-semibold mb-3">No Analysis Yet</h3>
+                <p className="text-gray-400">Enter your details above to get started with your options trade analysis.</p>
+              </div>
+            )
           )}
 
           {/* ✅ Recommendations section */}
           {!loading && Object.keys(analysisData).length > 0 && (
             <>
+              {/* User profile block is also shown here above recommendations */}
+              {user && (
+                <div className="p-3 mb-5 mt-4 rounded border border-secondary bg-dark bg-opacity-50 text-start">
+                  <div className="d-flex align-items-start gap-3">
+                    <img
+                      src={user?.avatar || 'https://via.placeholder.com/80'}
+                      alt={`${user?.name || 'User'}'s avatar`}
+                      className="rounded-circle border border-secondary"
+                      width={80}
+                      height={80}
+                    />
+                    <div className="pt-1">
+                      <h4 className="mb-1">{user?.name || 'AI-Trader Guest'}</h4>
+                      <p className="fst-italic text-info small mt-2">“Dream big. Trade smart.”</p>
+                      {user?.bio && <p className="text-secondary small mb-0">{user.bio}</p>}
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <p className="text-secondary small text-center">
+                      Fill out the form above to analyze your first options trade. Use the ticker, your capital, and risk level to get a recommendation.
+                    </p>
+                  </div>
+                </div>
+              )}
               <h3 className="text-light mb-4">📈 Trade Recommendations</h3>
 
               <div className="d-flex flex-wrap gap-2 mb-3">
