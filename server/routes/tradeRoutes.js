@@ -14,6 +14,8 @@ import {
 
 import { cleanUnknownTrades } from '../controllers/cleanupController.js';
 
+import { ensureAuth } from '../middleware/ensureAuth.js';
+
 const router = express.Router();
 
 /**
@@ -35,8 +37,8 @@ router.get('/summary/:ticker', asyncHandler(getSummary));
 // ✅ POST analyze trade request w/ validation middleware
 router.post('/analyze-trade', validateTradeRequest, asyncHandler(analyzeTrade));
 
-// ✅ GET all saved trades from DB
-router.get('/trades', asyncHandler(getAllTrades));
+// ✅ GET all saved trades from DB (protected)
+router.get('/trades', ensureAuth, asyncHandler(getAllTrades));
 
 // ✅ PUT update trade outcome manually
 router.put('/trades/:id/outcome', asyncHandler(updateTradeOutcome));

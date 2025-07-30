@@ -348,6 +348,7 @@ export const analyzeTrade = async (req, res) => {
           tickers: [ticker],
           capital: enrichedData.capital,
           riskTolerance,
+          userIdentifier: req.user?.id || req.headers['x-guest-id'] || 'anonymous',
           recommendationDirection: gptResponse.tradeType.toLowerCase(),
           confidence: gptResponse.confidence.toLowerCase(),
           gptPrompt: gptResponse.prompt ?? 'N/A',
@@ -425,10 +426,11 @@ export const analyzeTrade = async (req, res) => {
 
 
 
-// 📚 Fetch all saved trade recommendations
+// 📚 Fetch all saved trade recommendations (filtered by user/guest)
 export const getAllTrades = async (req, res) => {
   try {
-    const trades = await TradeRecommendation.find().sort({ createdAt: -1 });
+    const userIdentifier = req.user?.id || req.headers['x-guest-id'] || 'anonymous';
+    const trades = await TradeRecommendation.find({ userIdentifier }).sort({ createdAt: -1 });
     console.log(`📊 Fetched ${trades.length} trades from database`);
     res.json(trades);
   } catch (error) {
