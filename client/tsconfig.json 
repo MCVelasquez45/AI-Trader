@@ -35,6 +35,6 @@
   ],
 
   "exclude": [
-    "node_modules" // 🚫 Always exclude dependencies
+    "node_modules" // 🚫 Always exclude dependencies`
   ]
 }

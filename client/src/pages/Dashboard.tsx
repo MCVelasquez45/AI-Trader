@@ -23,21 +23,91 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
   const [showHistory, setShowHistory] = useState<boolean>(false);
   const { user } = useAuth();
 
-  // 🔁 Load persisted recommendations from localStorage on page load
+  // 🔁 Load persisted recommendations from localStorage on page load (only for guests)
   useEffect(() => {
-    const storedAnalysis = localStorage.getItem('analysisData');
-    const storedTicker = localStorage.getItem('activeTicker');
-    if (storedAnalysis) setAnalysisData(JSON.parse(storedAnalysis));
-    if (storedTicker) setActiveTicker(storedTicker);
-  }, []);
+    if (!user) {
+      const storedAnalysis = localStorage.getItem('analysisData');
+      const storedTicker = localStorage.getItem('activeTicker');
+      if (storedAnalysis) setAnalysisData(JSON.parse(storedAnalysis));
+      if (storedTicker) setActiveTicker(storedTicker);
+    }
+  }, [user]);
 
-  // 💾 Persist recommendations in localStorage
+  // 🧼 Reset dashboard state on sign out and load user trade history on sign in
   useEffect(() => {
-    if (Object.keys(analysisData).length > 0) {
+    if (!user) {
+      console.log('👋 User signed out, resetting dashboard state');
+      setAnalysisData({});
+      setActiveTicker(null);
+      setUnaffordableTickers([]);
+      localStorage.removeItem('analysisData');
+      localStorage.removeItem('activeTicker');
+      return;
+    }
+
+    const fetchUserTrades = async () => {
+      try {
+        const response = await fetch(`/api/trades`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
+
+        if (!response.ok) throw new Error('Failed to fetch trade history');
+
+        const trades = await response.json();
+        console.log('📦 Full trade history pulled:', trades);
+
+        const loadedAnalysis: Record<string, AnalysisData> = {};
+
+        trades.forEach((trade: any) => {
+          if (trade && trade.option && trade.option.ticker) {
+            const ticker = trade.option.ticker?.split(':')[1]?.substring(0, 4)?.toUpperCase() || trade.ticker?.toUpperCase() || 'UNKNOWN';
+
+            loadedAnalysis[ticker] = {
+              ticker,
+              option: trade.option,
+              recommendationDirection: trade.recommendationDirection,
+              confidence: trade.confidence,
+              entryPrice: trade.entryPrice,
+              targetPrice: trade.targetPrice,
+              stopLoss: trade.stopLoss,
+              gptResponse: trade.gptResponse,
+              sentimentSummary: trade.sentimentSummary || 'N/A',
+              congressTrades: trade.congressTrades || 'N/A',
+              breakEvenPrice: trade.breakEvenPrice ?? 'N/A',
+              expectedROI: trade.expectedROI ?? 'N/A',
+              indicators: trade.indicators ?? {
+                rsi: null,
+                macd: { histogram: null },
+                vwap: null
+              },
+              expiryDate: trade.option?.expiration_date
+            };
+          }
+        });
+
+        setAnalysisData(loadedAnalysis);
+        const firstTicker = Object.keys(loadedAnalysis)[0];
+        setActiveTicker(firstTicker || null);
+        console.log('✅ Loaded trade history for user');
+      } catch (err) {
+        console.error('❌ Error loading trade history:', err);
+      }
+    };
+
+    fetchUserTrades();
+  }, [user]);
+
+  // 💾 Persist recommendations in localStorage (only for guests)
+  useEffect(() => {
+    if (!user && Object.keys(analysisData).length > 0) {
       localStorage.setItem('analysisData', JSON.stringify(analysisData));
       if (activeTicker) localStorage.setItem('activeTicker', activeTicker);
     }
-  }, [analysisData, activeTicker]);
+  }, [analysisData, activeTicker, user]);
 
   const handleAnalysisResult = async ({ tickers, capital, riskTolerance, result }: any) => {
     console.log('📬 Received analysis result from <TradeForm>');

@@ -29,12 +29,8 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: '',
     trim: true,
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
+  }
+}, { timestamps: true }); // ⏱ Adds createdAt and updatedAt fields
 
 // 🔐 Hash password before saving ONLY if modified
 userSchema.pre('save', async function (next) {
