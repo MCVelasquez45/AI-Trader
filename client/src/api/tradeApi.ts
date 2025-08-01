@@ -17,7 +17,7 @@ export const analyzeTrade = async (payload: TradePayload) => {
     console.log('📥 [analyzeTrade] Response:', res?.data);
     return res?.data;
   } catch (error: any) {
-    const errMsg = error?.response?.data || error?.message || 'Unknown error';
+    const errMsg = error?.response?.data?.error || error?.message || 'Unknown error';
     console.error('❌ [analyzeTrade] Request failed:', errMsg);
     throw new Error(errMsg);
   }

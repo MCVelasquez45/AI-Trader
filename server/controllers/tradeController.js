@@ -346,6 +346,7 @@ export const analyzeTrade = async (req, res) => {
         // 💾 Step 2.8: Save trade recommendation to MongoDB
         const newRec = new TradeRecommendation({
           tickers: [ticker],
+          ticker, // ✅ Add this line
           capital: enrichedData.capital,
           riskTolerance,
           userIdentifier: req.user
@@ -424,17 +425,14 @@ export const analyzeTrade = async (req, res) => {
 };
 
 
-
-
-
-
 // 📚 Fetch all saved trade recommendations (filtered by user/guest)
 export const getAllTrades = async (req, res) => {
   try {
-    console.log('🧠 Fetching ALL trades (ignoring user/session filter)');
-    const trades = await TradeRecommendation.find().sort({ createdAt: -1 });
+    // Only fetch trades for the logged-in user or guest user (via x-guest-id)
+    const userId = req.user ? req.user._id.toString() : req.headers['x-guest-id'] || 'anonymous';
+    const trades = await TradeRecommendation.find({ userIdentifier: userId }).sort({ createdAt: -1 });
     console.dir(trades, { depth: null });
-    console.log(`📊 Fetched ${trades.length} total trades from database`);
+    console.log(`📊 Fetched ${trades.length} trades for userIdentifier: ${userId}`);
     res.json(trades);
   } catch (error) {
     console.error('❌ Error fetching trades:', error.message);
