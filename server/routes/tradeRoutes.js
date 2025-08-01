@@ -37,8 +37,16 @@ router.get('/summary/:ticker', asyncHandler(getSummary));
 // ✅ POST analyze trade request w/ validation middleware
 router.post('/analyze-trade', validateTradeRequest, asyncHandler(analyzeTrade));
 
-// ✅ GET all saved trades from DB (protected)
-router.get('/trades', ensureAuth, asyncHandler(getAllTrades));
+// ✅ GET all trades for the authenticated user from DB (protected)
+console.log('🔍 [Debug] Registering /trades route with ensureAuth middleware');
+router.get('/trades', asyncHandler((req, res, next) => {
+  console.log('🛂 [Route] /trades accessed');
+  console.log('🔍 Method:', req.method);
+  console.log('📍 URL:', req.originalUrl);
+  console.log('👤 Authenticated User:', req.user);
+  console.log('🧠 Session Data:', req.session);
+  return getAllTrades(req, res, next);
+}));
 
 // ✅ PUT update trade outcome manually
 router.put('/trades/:id/outcome', asyncHandler(updateTradeOutcome));

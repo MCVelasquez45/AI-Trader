@@ -3,6 +3,7 @@
 import { axiosInstance } from './axiosInstance';
 import type { RiskLevel } from '../types/TradeForm';
 import type { ValidateTickerResponse } from '../types/OptionContract';
+import type { AuthCredentials, AuthResponse } from '../types/Auth';
 
 // ----------------------
 // 📡 POST: /analyze-trade
@@ -79,9 +80,39 @@ export const validateTicker = async (
 };
 
 // ----------------------
+// 🔐 POST: /auth/signup
+// ----------------------
+export const signupUser = async (credentials: AuthCredentials): Promise<AuthResponse> => {
+  try {
+    const res = await axiosInstance.post('/auth/signup', credentials);
+    console.log('📝 [signupUser] Response:', res?.data);
+    return res?.data;
+  } catch (error: any) {
+    const errMsg = error?.response?.data || error?.message || 'Unknown error';
+    console.error('❌ [signupUser] Failed:', errMsg);
+    throw new Error(errMsg);
+  }
+};
+
+// ----------------------
+// 🔐 POST: /auth/login
+// ----------------------
+export const loginUser = async (credentials: AuthCredentials): Promise<AuthResponse> => {
+  try {
+    const res = await axiosInstance.post('/auth/login', credentials);
+    console.log('🔑 [loginUser] Response:', res?.data);
+    return res?.data;
+  } catch (error: any) {
+    const errMsg = error?.response?.data || error?.message || 'Unknown error';
+    console.error('❌ [loginUser] Failed:', errMsg);
+    throw new Error(errMsg);
+  }
+};
+
+// ----------------------
 // 🔐 GET: /auth/current-user
 // ----------------------
-export const getCurrentUser = async () => {
+export const getCurrentUser = async (): Promise<AuthResponse | null> => {
   try {
     const res = await axiosInstance.get('/auth/current-user');
     console.log('👤 [getCurrentUser] Response:', res?.data);

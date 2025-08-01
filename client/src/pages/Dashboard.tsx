@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { axiosInstance } from '../api/axiosInstance';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import { BsBank, BsBarChartFill, BsChatDotsFill } from 'react-icons/bs';
@@ -47,21 +48,11 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
 
     const fetchUserTrades = async () => {
       try {
-        const response = await fetch(`/api/trades`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-        });
-
-        if (!response.ok) throw new Error('Failed to fetch trade history');
-
-        const trades = await response.json();
+        const response = await axiosInstance.get('/api/trades');
+        const trades = response.data;
         console.log('📦 Full trade history pulled:', trades);
 
         const loadedAnalysis: Record<string, AnalysisData> = {};
-
         trades.forEach((trade: any) => {
           if (trade && trade.option && trade.option.ticker) {
             const ticker = trade.option.ticker?.split(':')[1]?.substring(0, 4)?.toUpperCase() || trade.ticker?.toUpperCase() || 'UNKNOWN';

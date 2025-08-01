@@ -1,51 +1,24 @@
-// ✅ File: server/controllers/tradeController.js
+import mongoose from 'mongoose';
 
-import TradeRecommendation from '../models/TradeRecommendation.js';
+const TradeRecommendationSchema = new mongoose.Schema({
+  ticker: { type: String, required: true },
+  capital: { type: Number, required: true },
+  riskTolerance: { type: String, required: true },
+  userIdentifier: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  option: { type: Object, required: true },
+  recommendationDirection: { type: String },
+  confidence: { type: String, enum: ['low', 'medium', 'high'] },
+  entryPrice: { type: Number },
+  targetPrice: { type: Number },
+  stopLoss: { type: Number },
+  breakEvenPrice: { type: Number },
+  expectedROI: { type: Number },
+  indicators: { type: Object },
+  gptResponse: { type: String },
+  sentimentSummary: { type: String },
+  congressTrades: { type: Array },
+}, { timestamps: true });
 
-export const analyzeTrade = async (req, res) => {
-  try {
-    const { capital, riskTolerance, watchlist, validatedContracts = {} } = req.body;
+TradeRecommendationSchema.index({ userIdentifier: 1 });
 
-    const userIdentifier =
-      (req.user && req.user.id) ||
-      req.headers['x-guest-id'] ||
-      'anonymous-' + Math.random().toString(36).substring(2, 15);
-
-    // ... other logic to prepare trade recommendation data
-
-    const tradeRecommendation = new TradeRecommendation({
-      // ... other fields
-      capital,
-      riskTolerance,
-      tickers: watchlist,
-      // ... possibly other fields
-      userIdentifier,
-    });
-
-    await tradeRecommendation.save();
-
-    res.status(201).json(tradeRecommendation);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-export const getAllTrades = async (req, res) => {
-  try {
-    const userIdentifier =
-      (req.user && req.user.id) ||
-      req.headers['x-guest-id'];
-
-    if (!userIdentifier) {
-      return res.status(400).json({ error: 'Missing user identifier.' });
-    }
-
-    console.log(`📤 Fetching trades for userIdentifier: ${userIdentifier}`);
-
-    const trades = await TradeRecommendation.find({ userIdentifier }).sort({ createdAt: -1 });
-
-    res.status(200).json(trades);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+export default mongoose.model('TradeRecommendation', TradeRecommendationSchema);

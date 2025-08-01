@@ -3,7 +3,29 @@
 // 📦 Import required modules
 import express from 'express';
 import passport from 'passport';
+import multer from 'multer';
+import fs from 'fs';
+import path from 'path';
 import { signup, login } from '../controllers/authController.js'; // ✨ Local auth handlers
+
+// ✅ Ensure uploads directory exists
+const uploadDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+// 🧠 Multer config for avatar uploads (saves to /uploads/)
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
+  }
+});
+
+const upload = multer({ storage });
 
 const router = express.Router();
 
@@ -80,8 +102,18 @@ router.get('/current-user', (req, res) => {
  * These routes support creating and logging into local accounts
  */
 
-// 🆕 Register new user with email + password
-router.post('/signup', signup); // 🔐 POST /auth/signup
+/**
+ * 🆕 Signup route with avatar file upload (handled by Multer middleware)
+ * Field name for avatar file: "avatar"
+ */
+router.post('/signup', upload.single('avatar'), (req, res, next) => {
+  if (req.file) {
+    console.log(`📁 Uploaded avatar file: ${req.file.filename}`);
+  }
+  console.log('🧾 Request body:', req.body);
+  console.log('👤 Session user:', req.user);
+  next();
+}, signup); // 🔐 POST /auth/signup (with file support)
 
 // 🔑 Login existing user with credentials
 router.post('/login', login);   // 🔐 POST /auth/login

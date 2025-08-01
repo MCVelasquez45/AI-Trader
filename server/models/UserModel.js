@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema({
   },
   name: {
     type: String,
+    required: true,
     trim: true,
   },
   email: {
@@ -23,14 +24,27 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     minlength: 6, // ✅ Minimum password length for local users
+    select: false, // 🛡️ Prevent exposing password hashes by default
   },
-  avatar: String, // 🌄 Google users will have profile photo here
+  avatar: {
+    type: String,
+    default: '', // Users can upload or leave empty
+    trim: true
+  },
   bio: {
     type: String,
     default: '',
     trim: true,
   }
-}, { timestamps: true }); // ⏱ Adds createdAt and updatedAt fields
+}, { 
+  timestamps: true,
+  toJSON: {
+    transform(doc, ret) {
+      delete ret.password;
+      return ret;
+    }
+  }
+}); // ⏱ Adds createdAt and updatedAt fields
 
 // 🔐 Hash password before saving ONLY if modified
 userSchema.pre('save', async function (next) {
@@ -60,6 +74,8 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
     throw err;
   }
 };
+
+// 💾 Avatar field can be enhanced to support CDN uploads (e.g., Cloudinary) later
 
 // ✅ Create and export model
 const User = mongoose.model('User', userSchema);

@@ -1,4 +1,17 @@
 /* styles/custom-theme.css */
+html, body, #root {
+  height: 100%;
+  min-height: 100vh;
+}
+
+body {
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .text-gradient {
   background-image: linear-gradient(to right, #00c6ff, #0072ff);
   -webkit-background-clip: text;
@@ -8,7 +21,6 @@
   background-clip: text;
   color: transparent;
 }
-
 
 .typing-dots span {
   display: inline-block;
@@ -39,6 +51,7 @@
     opacity: 0.7;
   }
 }
+
 /* Add to theme.css */
 .shimmer-overlay {
   position: fixed;
@@ -52,16 +65,9 @@
   animation: pulseGlow 8s ease-in-out infinite;
   z-index: 0;
 }
+
 /* Improve placeholder visibility on dark backgrounds */
 ::placeholder {
   color: #adb5bd !important; /* light gray */
   opacity: 1;
-}
-
-
-/* Prevent horizontal scroll caused by whitespace around app */
-body {
-  overflow-x: hidden;
-  margin: 0;
-  padding: 0;
 }

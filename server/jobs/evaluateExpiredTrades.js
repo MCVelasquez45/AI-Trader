@@ -60,9 +60,10 @@ async function evaluateExpiredTrades() {
     // 🗃 Query all trades that are expired (regardless of outcome)
     const trades = await TradeRecommendation.find({
       entryPrice: { $ne: null }
-    }).lean(); // lean for performance (optional)
+    });
 
     const expired = trades.filter(trade => {
+      console.log(`🔍 Filtering for expired trades from total of ${trades.length}`);
       const expDate = new Date(trade.expiryDate);
       return expDate <= now;
     });
@@ -122,6 +123,7 @@ async function evaluateExpiredTrades() {
           await trade.save();
 
           console.log(`✅ ${ticker} → Outcome: ${outcome}, Exit: $${exitPrice.toFixed(2)}, ROI: ${percentageChange.toFixed(2)}%`);
+          console.log(`💾 Saved evaluation for ${ticker} (User: ${trade.userIdentifier || 'unknown'})`);
 
         } catch (err) {
           console.error(`❌ Evaluation error for ${ticker}:`, err.message);
