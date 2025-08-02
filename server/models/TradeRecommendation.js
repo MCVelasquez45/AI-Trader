@@ -6,7 +6,7 @@ import mongoose from 'mongoose';
  * Stores GPT-based trade ideas, technical indicators, and option contract details.
  * Used for analysis, history tracking, and evaluation of outcomes.
  */
-const tradeRecommendationSchema = new mongoose.Schema({
+const tradeRecommendationSchema = new mongoose.Schema({                                                                              
   // 🧾 User input
   tickers: [String],                         // Watchlist tickers (e.g., ['AAPL', 'TSLA'])
   capital: { type: Number, required: true }, // User’s available capital for trade
@@ -69,7 +69,16 @@ const tradeRecommendationSchema = new mongoose.Schema({
   },
 
   // 🏛️ Contextual data
-  congressTrades: String,                              // Optional list of congressional trades
+  congressTrades: [                                    // List of congressional trades
+    {
+      ticker: String,
+      politician: String,
+      transactionDate: Date,
+      transactionType: { type: String, enum: ['buy', 'sell'] },
+      amountRange: String,
+      source: String
+    }
+  ],
   sentimentSummary: String,                            // Summary of news sentiment from GPT
 
   // ✅ Trade evaluation results

@@ -353,7 +353,9 @@ export const analyzeTrade = async (req, res) => {
             ? req.user._id.toString()
             : req.headers['x-guest-id'] || 'anonymous',
           recommendationDirection: gptResponse.tradeType.toLowerCase(),
-          confidence: gptResponse.confidence.toLowerCase(),
+          confidence: ['low', 'medium', 'high'].includes(gptResponse.confidence.toLowerCase())
+            ? gptResponse.confidence.toLowerCase()
+            : 'medium',
           gptPrompt: gptResponse.prompt ?? 'N/A',
           gptResponse: gptResponse.analysis,
           entryPrice: gptResponse.entryPrice,
@@ -380,7 +382,9 @@ export const analyzeTrade = async (req, res) => {
             capital,
             riskTolerance,
             recommendationDirection: gptResponse.tradeType.toLowerCase(),
-            confidence: gptResponse.confidence.toLowerCase(),
+            confidence: ['low', 'medium', 'high'].includes(gptResponse.confidence.toLowerCase())
+              ? gptResponse.confidence.toLowerCase()
+              : 'medium',
             gptResponse: gptResponse.analysis,
             entryPrice: gptResponse.entryPrice,
             targetPrice: gptResponse.targetPrice,
@@ -389,7 +393,7 @@ export const analyzeTrade = async (req, res) => {
             expectedROI,
             option: contract,
             sentimentSummary: enrichedData.sentiment || 'No news sentiment available.',
-            congressTrades: enrichedData.congress || 'No congressional trades found.',
+            congressTrades: Array.isArray(enrichedData.congress) ? enrichedData.congress : [],
             indicators: enrichedData.indicators ?? {
               rsi: null,
               macd: { histogram: null },
