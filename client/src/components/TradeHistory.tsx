@@ -132,8 +132,8 @@ const TradeHistory: React.FC = () => {
                   <td>{formatDollar(trade.entryPrice)}</td>
                   <td>
   {trade.option?.expiration_date
-    ? trade.option.expiration_date
-    : new Date(trade.expiryDate).toISOString().split('T')[0]}
+    ? new Date(trade.option.expiration_date).toLocaleDateString()
+    : new Date(trade.expiryDate).toLocaleDateString()}
 </td>
 
                   <td>{trade.outcome ?? 'pending'}</td>
