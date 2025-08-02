@@ -3,9 +3,11 @@
 // 📦 Import required modules
 import express from 'express';
 import passport from 'passport';
+import multer from 'multer'; // ⬅️ Import multer
 import { signup, login } from '../controllers/authController.js'; // ✨ Local auth handlers
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() }); // ⬅️ Use memory storage for avatar uploads
 
 /**
  * 🔐 STEP 1: Start Google OAuth login flow
@@ -80,8 +82,8 @@ router.get('/current-user', (req, res) => {
  * These routes support creating and logging into local accounts
  */
 
-// 🆕 Register new user with email + password
-router.post('/signup', signup); // 🔐 POST /auth/signup
+// 🆕 Register new user with email + password (supports avatar upload)
+router.post('/signup', upload.single('avatar'), signup); // 🔐 POST /auth/signup with multer
 
 // 🔑 Login existing user with credentials
 router.post('/login', login);   // 🔐 POST /auth/login

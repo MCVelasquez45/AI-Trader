@@ -236,7 +236,11 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
               <div className="p-3 mb-5 mt-4 rounded border border-secondary bg-dark bg-opacity-50 text-start">
                 <div className="d-flex align-items-start gap-3">
                   <img
-                    src={user?.avatar || 'https://via.placeholder.com/80'}
+                    src={
+                      user?.avatar?.startsWith('/uploads/')
+                        ? `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:4545'}${user.avatar}`
+                        : user?.avatar || 'https://via.placeholder.com/80'
+                    }
                     alt={`${user?.name || 'User'}'s avatar`}
                     className="rounded-circle border border-secondary"
                     width={80}
@@ -273,7 +277,11 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
                 <div className="p-3 mb-5 mt-4 rounded border border-secondary bg-dark bg-opacity-50 text-start">
                   <div className="d-flex align-items-start gap-3">
                     <img
-                      src={user?.avatar || 'https://via.placeholder.com/80'}
+                      src={
+                        user?.avatar?.startsWith('/uploads/')
+                          ? `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:4545'}${user.avatar}`
+                          : user?.avatar || 'https://via.placeholder.com/80'
+                      }
                       alt={`${user?.name || 'User'}'s avatar`}
                       className="rounded-circle border border-secondary"
                       width={80}

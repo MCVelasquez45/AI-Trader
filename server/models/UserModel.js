@@ -18,6 +18,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     lowercase: true,
+    trim: true,
     unique: true, // 🔐 Email must be unique across all users
   },
   password: {

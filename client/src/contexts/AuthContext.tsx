@@ -16,6 +16,7 @@ import React, {
     user: AuthUser | null;           // 👤 Authenticated user info
     authenticated: boolean;         // 🔐 Auth status flag
     logout: () => void;             // 🚪 Logout function
+    refreshUser: () => Promise<void>; // 🔄 Manually refresh user session
   }
   
   // 🧠 Create and export the actual context (default values are empty and overridden by provider)
@@ -25,6 +26,29 @@ import React, {
   export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<AuthUser | null>(null);         // 👤 Google account user
     const [authenticated, setAuthenticated] = useState(false);       // 🔐 Is the user logged in?
+    // 🔄 Manually refresh user session
+    const refreshUser = async () => {
+      console.log(`[${new Date().toISOString()}] 🔄 [Auth] Manually refreshing user session...`);
+      try {
+        const res = await axiosInstance.get<CurrentUserResponse>('/api/auth/current-user', {
+          withCredentials: true,
+        });
+
+        if (res.data?.authenticated) {
+          setUser(res.data.user ?? null);
+          setAuthenticated(true);
+          console.log('✅ [Auth] Refreshed session for:', res.data.user?.email);
+        } else {
+          setUser(null);
+          setAuthenticated(false);
+          console.log('🔓 [Auth] Session not found');
+        }
+      } catch (err: any) {
+        console.error('❌ [Auth] Refresh failed:', err.message);
+        setUser(null);
+        setAuthenticated(false);
+      }
+    };
   
     // 🚀 On mount, check session status via cookie-based auth
     useEffect(() => {
@@ -73,9 +97,9 @@ import React, {
         });
     };
   
-    // 🧩 Provide context state + logout handler
+    // 🧩 Provide context state + logout handler + refreshUser
     return (
-      <AuthContext.Provider value={{ user, authenticated, logout }}>
+      <AuthContext.Provider value={{ user, authenticated, logout, refreshUser }}>
         {children}
       </AuthContext.Provider>
     );

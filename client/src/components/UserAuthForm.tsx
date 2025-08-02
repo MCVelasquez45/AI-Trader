@@ -1,5 +1,3 @@
-// ✅ File: client/src/components/UserAuthForm.tsx
-
 import React, { useState } from 'react';
 import axios from 'axios';
 import { AuthCredentials, AuthResponse } from '../types/Auth';
@@ -23,13 +21,14 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ mode, onSuccess }) => {
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg('');
 
-    const endpoint = mode === 'signin' ? '/auth/login' : '/auth/signup';
+    const endpoint = mode === 'signin' ? '/api/auth/login' : '/api/auth/signup';
 
     // 🧾 Logging extracted values before submitting
     console.log('🧾 [UserAuthForm] Submitting to:', endpoint);
@@ -41,6 +40,12 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ mode, onSuccess }) => {
     console.log('📧 Email:', email);
     console.log('🔑 Password:', password);
 
+    if (mode === 'join' && !email) {
+      setErrorMsg('📧 Email is required to sign up.');
+      setLoading(false);
+      return;
+    }
+
     let payload: any = { email, password };
     if (mode === 'join') {
       payload = new FormData();
@@ -49,17 +54,23 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ mode, onSuccess }) => {
       payload.append('name', name);
       payload.append('bio', bio);
       if (avatarFile) payload.append('avatar', avatarFile);
+    } else {
+      // Convert payload into a regular object (not FormData)
+      payload = { email, password };
     }
 
     try {
       const res = await axios.post<AuthResponse>(endpoint, payload, {
         withCredentials: true,
-        headers: mode === 'join' ? { 'Content-Type': 'multipart/form-data' } : {}
+        headers: mode === 'join'
+          ? { 'Content-Type': 'multipart/form-data' }
+          : undefined
       });
 
       if (res.data.success && res.data.user) {
         console.log('🎉 [UserAuthForm] Auth success, user payload:', res.data.user);
         onSuccess(res.data.user);
+        window.location.reload(); // 🔁 Force refresh to sync frontend AuthContext
       } else {
         console.warn('⚠️ Auth failed:', res.data.message);
         setErrorMsg(res.data.message || 'Something went wrong. Try again.');
@@ -67,7 +78,15 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ mode, onSuccess }) => {
     } catch (err: any) {
       console.error('⛔ Server error during auth:', err);
       console.log('❌ [UserAuthForm] Error response payload:', err.response?.data);
-      setErrorMsg(err.response?.data?.message || 'Server error. Please try again.');
+      if (err.response?.data?.error?.includes('already registered')) {
+        setErrorMsg('🚫 Email already registered. Please sign in instead.');
+      } else if (err.response?.status === 400) {
+        setErrorMsg(
+          err.response?.data?.error || '❌ Invalid request. Please check your input.'
+        );
+      } else {
+        setErrorMsg(err.response?.data?.message || 'Server error. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -89,14 +108,24 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ mode, onSuccess }) => {
 
       <div className="mb-3">
         <label htmlFor="password" className="form-label">🔑 Password</label>
-        <input
-          type="password"
-          className="form-control"
-          id="password"
-          required
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-        />
+        <div className="input-group">
+          <input
+            type={showPassword ? 'text' : 'password'}
+            className="form-control"
+            id="password"
+            required
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+          />
+          <button
+            type="button"
+            className="btn btn-outline-secondary"
+            onClick={() => setShowPassword(prev => !prev)}
+            tabIndex={-1}
+          >
+            {showPassword ? '🙈 Hide' : '👁️ Show'}
+          </button>
+        </div>
       </div>
 
       {mode === 'join' && (
