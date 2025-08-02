@@ -85,6 +85,7 @@ export const getCurrentUser = async () => {
   try {
     const res = await axiosInstance.get('/auth/current-user');
     console.log('👤 [getCurrentUser] Response:', res?.data);
+    console.log('🧠 [getCurrentUser] Authenticated user payload:', res?.data);
     return res?.data;
   } catch (error: any) {
     console.error('❌ [getCurrentUser] Failed:', error?.message);
@@ -96,5 +97,6 @@ export const getCurrentUser = async () => {
 // 🔐 OAuth: /auth/google
 // ----------------------
 export const getGoogleLoginUrl = () => {
+  console.log('🌐 [getGoogleLoginUrl] Returning Google OAuth login route');
   return `/auth/google`; // ✅ Uses Vite proxy + Express route
 };

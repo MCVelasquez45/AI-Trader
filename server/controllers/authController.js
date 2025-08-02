@@ -2,7 +2,6 @@ import User from '../models/UserModel.js';
 
 // 🆕 SIGNUP CONTROLLER: Handles local user registration
 export const signup = async (req, res) => {
-  // Destructure with bio and avatar, add trace log
   const { name, email, password, bio, avatar } = req.body;
   console.log('📨 [Signup] Incoming request payload:', req.body);
 
@@ -13,7 +12,6 @@ export const signup = async (req, res) => {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
-    // 🧠 Create new user with defaults if bio/avatar missing
     const user = new User({
       name,
       email,
@@ -25,7 +23,6 @@ export const signup = async (req, res) => {
     await user.save();
     console.log('✅ [Signup] New user created:', user.email);
 
-    // 🧩 Log user in immediately after signup
     req.login(user, (err) => {
       if (err) throw err;
       console.log('🔐 [Signup] User auto-logged in after signup:', user.email);
