@@ -313,10 +313,12 @@ export const analyzeTrade = async (req, res) => {
         const rawExpiry = contract.expiration_date;
         const normalizedExpiryDate = new Date(new Date(rawExpiry).setUTCHours(20, 0, 0, 0));
 
-        // 🛠 Overwrite `contract.expiration_date` with formatted ISO date string (yyyy-mm-dd)
-        contract.expiration_date = normalizedExpiryDate.toISOString().split('T')[0];
+        // 🛠 Create a copy of the contract with normalized date for display
+        const displayContract = { ...contract };
+        displayContract.expiration_date = normalizedExpiryDate.toISOString().split('T')[0];
 
-        console.log(`🗓️ [${ticker}] Normalized Expiration Date:`, contract.expiration_date);
+        console.log(`🗓️ [${ticker}] Normalized Expiration Date:`, displayContract.expiration_date);
+        console.log(`🗓️ [${ticker}] Original Expiration Date:`, contract.expiration_date);
 
         // 🤖 Step 2.6: Send enriched data to GPT-4 for trade recommendation
         try {
@@ -344,11 +346,13 @@ export const analyzeTrade = async (req, res) => {
           ((gptResponse.targetPrice - gptResponse.entryPrice) / gptResponse.entryPrice) * 100;
 
         // 💾 Step 2.8: Save trade recommendation to MongoDB
+        const userIdentifier = req.user?.email || req.headers['x-guest-id'] || 'anonymous';
+        console.log(`💾 [analyzeTrade] Saving trade with userIdentifier: ${userIdentifier}`);
         const newRec = new TradeRecommendation({
           tickers: [ticker],
           capital: enrichedData.capital,
           riskTolerance,
-          userIdentifier: req.user?.id || req.headers['x-guest-id'] || 'anonymous',
+          userIdentifier: userIdentifier,
           recommendationDirection: gptResponse.tradeType.toLowerCase(),
           confidence: gptResponse.confidence.toLowerCase(),
           gptPrompt: gptResponse.prompt ?? 'N/A',
@@ -359,10 +363,19 @@ export const analyzeTrade = async (req, res) => {
           estimatedCost,
           breakEvenPrice,
           expectedROI,
-          expiryDate: contract.expiration_date, // ✅ match normalized formatted string
-          option: contract,
+          expiryDate: normalizedExpiryDate, // ✅ Use the normalized Date object for database
+          option: contract, // ✅ Use original contract with proper date format
           sentimentSummary: enrichedData.sentiment,
-          congressTrades: enrichedData.congress,
+          congressTrades: Array.isArray(enrichedData.congress)
+            ? enrichedData.congress.map(trade => ({
+                ticker: trade.ticker || '',
+                politician: trade.representative || '',
+                transactionDate: new Date(trade.date),
+                transactionType: trade.type.toLowerCase(),
+                amountRange: trade.amount,
+                source: trade.link
+              }))
+            : [],
           indicators: enrichedData.indicators
         });
 
@@ -384,15 +397,24 @@ export const analyzeTrade = async (req, res) => {
             stopLoss: gptResponse.stopLoss,
             breakEvenPrice,
             expectedROI,
-            option: contract,
+            option: displayContract, // ✅ Use display contract for frontend
             sentimentSummary: enrichedData.sentiment || 'No news sentiment available.',
-            congressTrades: enrichedData.congress || 'No congressional trades found.',
+            congressTrades: Array.isArray(enrichedData.congress)
+              ? enrichedData.congress.map(trade => ({
+                  ticker: trade.ticker || '',
+                  politician: trade.representative || '',
+                  transactionDate: new Date(trade.date),
+                  transactionType: trade.type.toLowerCase(),
+                  amountRange: trade.amount,
+                  source: trade.link
+                }))
+              : [],
             indicators: enrichedData.indicators ?? {
               rsi: null,
               macd: { histogram: null },
               vwap: null
             },
-            expiryDate: contract.expiration_date // ✅ match UI display
+            expiryDate: displayContract.expiration_date // ✅ Use display date for UI
           }
         });
 
@@ -422,18 +444,95 @@ export const analyzeTrade = async (req, res) => {
 };
 
 
-
-
-
-
 // 📚 Fetch all saved trade recommendations (filtered by user/guest)
 export const getAllTrades = async (req, res) => {
   try {
-    const userIdentifier = req.user?.id || req.headers['x-guest-id'] || 'anonymous';
-    const trades = await TradeRecommendation.find({ userIdentifier }).sort({ createdAt: -1 });
-    console.log(`📊 Fetched ${trades.length} trades from database`);
-    res.json(trades);
+    console.log('🧠 [getAllTrades] Request received');
+    console.log('🧠 [getAllTrades] Headers:', req.headers);
+    console.log('🧠 [getAllTrades] req.user:', req.user);
+    console.log('🧠 [getAllTrades] req.user.email:', req.user?.email);
+    console.log('🧠 [getAllTrades] req.user._id:', req.user?._id);
+    
+    const userId = req.user?._id?.toString();
+    const userEmail = req.user?.email;
+    const guestId = req.headers['x-guest-id'];
+    const userIdentifier = userEmail || guestId || 'anonymous';
+
+    console.log('🧠 [getAllTrades] userIdentifier:', userIdentifier);
+    console.log('🧠 [getAllTrades] guestId from headers:', guestId);
+    console.log('🧠 [getAllTrades] userId:', userId);
+    console.log('🧠 [getAllTrades] userEmail:', userEmail);
+
+    // Build query based on authentication status
+    let query = {};
+    
+    if (req.user && req.user.email) {
+      // Authenticated user - get their trades AND legacy trades for backward compatibility
+      query = {
+        $or: [
+          { userIdentifier: req.user.email },
+          { userIdentifier: { $in: ['undefined', 'anonymous', null] } }
+        ]
+      };
+      console.log('🔐 [getAllTrades] Fetching trades for authenticated user:', req.user.email);
+      console.log('🔐 [getAllTrades] Query for authenticated user:', JSON.stringify(query));
+    } else if (guestId) {
+      // Guest user with ID - get their trades OR all anonymous trades for backward compatibility
+      if (guestId === 'anonymous') {
+        // For anonymous users, return all trades (including legacy undefined trades)
+        query = {};
+        console.log('🌐 [getAllTrades] Fetching all trades for anonymous user');
+      } else {
+        // For specific guest IDs, return ALL trades (including legacy undefined trades and anonymous trades)
+        // This ensures guest users can see all previous trade recommendations
+        query = {};
+        console.log('👤 [getAllTrades] Fetching all trades for guest user:', guestId);
+      }
+    } else {
+      // No guest ID - get all trades (including legacy undefined trades and anonymous trades)
+      query = {};
+      console.log('🌐 [getAllTrades] Fetching all trades for anonymous user');
+    }
+
+    console.log('🧠 [getAllTrades] Final query:', JSON.stringify(query));
+    const trades = await TradeRecommendation.find(query).sort({ createdAt: -1 });
+    const allTrades = await TradeRecommendation.find({});
+    console.log(`📊 Matched trades for userIdentifier="${userIdentifier}": ${trades.length}`);
+    console.log(`📊 Total trades in DB: ${allTrades.length}`);
+    console.log('🕵️ All trades in DB with userIdentifiers:');
+    allTrades.slice(0, 10).forEach((trade, index) => {
+      console.log(`  ${index + 1}. userIdentifier: "${trade.userIdentifier}", tickers: ${trade.tickers}, createdAt: ${trade.createdAt}`);
+    });
+    if (trades.length === 0) {
+      console.log('⚠️ No trades found for current userIdentifier');
+    }
+
+    console.log('🧠 [getAllTrades] Sending response with', trades.length, 'trades');
+    console.log('🧠 [getAllTrades] First trade sample:', trades[0] ? {
+      id: trades[0]._id,
+      tickers: trades[0].tickers,
+      userIdentifier: trades[0].userIdentifier,
+      createdAt: trades[0].createdAt
+    } : 'No trades');
+    
+    // Log detailed information about the first few trades
+    if (trades.length > 0) {
+      console.log('🧠 [getAllTrades] Detailed sample of first 3 trades:');
+      trades.slice(0, 3).forEach((trade, index) => {
+        console.log(`  Trade ${index + 1}:`);
+        console.log(`    - ID: ${trade._id}`);
+        console.log(`    - Tickers: ${trade.tickers}`);
+        console.log(`    - UserIdentifier: ${trade.userIdentifier}`);
+        console.log(`    - CreatedAt: ${trade.createdAt}`);
+        console.log(`    - Congress: ${typeof trade.congress} - ${Array.isArray(trade.congress) ? trade.congress.length : 'not array'}`);
+        console.log(`    - CongressTrades: ${typeof trade.congressTrades} - ${Array.isArray(trade.congressTrades) ? trade.congressTrades.length : 'not array'}`);
+      });
+    }
+    
+    // Ensure we're sending the full array
+    return res.status(200).json(trades);
   } catch (error) {
+    console.error('❌ [getAllTrades] Error:', error);
     res.status(500).json({ error: 'Failed to fetch trade history' });
   }
 };

@@ -49,6 +49,31 @@ axiosInstance.interceptors.response.use(
       `✅ [Response] ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}` +
       (duration != null ? ` (took ${duration} ms)` : '')
     );
+    
+    // Log detailed response data for trades endpoint
+    if (response.config.url?.includes('/api/trades')) {
+      console.log('📊 [Trades Response] Status:', response.status);
+      console.log('📊 [Trades Response] Data length:', Array.isArray(response.data) ? response.data.length : 'not array');
+      console.log('📊 [Trades Response] Data type:', typeof response.data);
+      
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        console.log('📊 [Trades Response] First trade keys:', Object.keys(response.data[0]));
+        console.log('📊 [Trades Response] First trade congress data:', response.data[0]?.congress);
+        console.log('📊 [Trades Response] First trade congressTrades data:', response.data[0]?.congressTrades);
+        
+        // Log detailed congressional data for first few trades
+        response.data.slice(0, 3).forEach((trade, index) => {
+          console.log(`📊 [Trades Response] Trade ${index + 1} (${trade.tickers?.join(', ') || 'Unknown'}):`);
+          console.log(`  - Congress:`, trade.congress);
+          console.log(`  - CongressTrades:`, trade.congressTrades);
+          console.log(`  - All keys:`, Object.keys(trade));
+        });
+        
+        // Log full JSON of first trade for detailed inspection
+        console.log('📊 [Trades Response] First trade full JSON:', JSON.stringify(response.data[0], null, 2));
+      }
+    }
+    
     return response;
   },
   (error: AxiosError) => {

@@ -134,12 +134,13 @@ export const enrichTickerData = async ({
     capital,
     contract: itmContract,
     sentiment,
-    congress: congressSummary,
+    congress: rawCongress,
+    congressSummary,
     indicators
   };
 
   console.log(`📦 FINAL ENRICHED DATA STRUCTURE:`);
-  console.log(JSON.stringify({ ...result, contract: result.contract }, null, 2));
+  console.log(JSON.stringify({ ...result, congressSummary }, null, 2));
 
   return result;
 };

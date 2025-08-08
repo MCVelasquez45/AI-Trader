@@ -6,9 +6,9 @@
  */
 
 export const ensureAuth = (req, res, next) => {
-    // 🧪 Check if Passport session exists
+    // 🧪 Check if Passport session exists and log full user identifier
     if (req.isAuthenticated && req.isAuthenticated()) {
-      console.log(`✅ Authenticated User: ${req.user.name} (${req.user.email})`);
+      console.log(`✅ Authenticated User: ${req.user.name} (${req.user.email}) - ID: ${req.user.id}`);
       return next(); // 🎯 Allow access
     }
   

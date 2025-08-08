@@ -1,3 +1,4 @@
+import { axiosInstance } from '../api/axiosInstance';
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
@@ -33,8 +34,10 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
     }
   }, [user]);
 
-  // 🧼 Reset dashboard state on sign out and load user trade history on sign in
+  // 🧼 Reset dashboard state on sign out and load user trade history on sign in (only after user.email is available)
   useEffect(() => {
+    if (typeof user === 'undefined') return;
+
     if (!user) {
       console.log('👋 User signed out, resetting dashboard state');
       setAnalysisData({});
@@ -45,19 +48,13 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
       return;
     }
 
+    if (!user.email) return;
+
+    console.log(`🔁 Authenticated user detected: ${user.email} — Fetching trade history...`);
+
     const fetchUserTrades = async () => {
       try {
-        const response = await fetch(`/api/trades`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-        });
-
-        if (!response.ok) throw new Error('Failed to fetch trade history');
-
-        const trades = await response.json();
+        const { data: trades } = await axiosInstance.get('/api/trades', { withCredentials: true });
         console.log('📦 Full trade history pulled:', trades);
 
         const loadedAnalysis: Record<string, AnalysisData> = {};
@@ -99,7 +96,7 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
     };
 
     fetchUserTrades();
-  }, [user]);
+  }, [user?.email]);
 
   // 💾 Persist recommendations in localStorage (only for guests)
   useEffect(() => {

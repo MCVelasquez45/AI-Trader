@@ -59,7 +59,8 @@ export interface TradeRecord {
   // ✅ Optional trade details
   option?: OptionContract;           // 🎟️ Option contract data
   indicators?: Indicators;           // 📊 RSI, MACD, VWAP, etc.
-  congressTrades?: string;           // 🏛️ CapitolTrades notes
+  congressTrades?: string;           // 🏛️ CapitolTrades notes (legacy)
+  congress?: any[];                  // 🏛️ Congressional trade data (new format)
   sentimentSummary?: string;         // 🗞️ News sentiment summary
   targetPrice?: number;              // 🎯 Target (profit)
   stopLoss?: number;                 // 🛑 Stop loss
