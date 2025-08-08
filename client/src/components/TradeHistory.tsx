@@ -16,48 +16,43 @@ const renderCongressTrades = (congressData?: any) => {
   
   // Handle case where congressData is a string (legacy format)
   if (typeof congressData === 'string') {
+    console.log('🧾 [CongressTrades] Processing as string format');
     return renderSimpleCongressionalData(congressData);
   }
   
-  // Handle case where congressData is an array of characters (broken JSON parsing)
-  if (Array.isArray(congressData) && congressData.length > 0 && typeof congressData[0] === 'object' && congressData[0] !== null) {
+  // Handle case where congressData is an array of objects (preferred format)
+  if (Array.isArray(congressData) && congressData.length > 0) {
+    console.log('🧾 [CongressTrades] Processing as array of objects');
+    console.log('🧾 [CongressTrades] Array length:', congressData.length);
+    console.log('🧾 [CongressTrades] First item:', congressData[0]);
+    
     // Check if it's the broken character array format
     const firstItem = congressData[0];
-    const hasNumericKeys = Object.keys(firstItem).some(key => !isNaN(Number(key)));
-    
-    if (hasNumericKeys) {
-      console.log('🧾 [CongressTrades] Detected broken character array format, attempting to reconstruct...');
+    if (firstItem && typeof firstItem === 'object') {
+      const hasNumericKeys = Object.keys(firstItem).some(key => !isNaN(Number(key)));
       
-      // Reconstruct the string from character array
-      const reconstructedString = congressData.map((charObj: any) => {
-        const chars = Object.values(charObj).filter(val => typeof val === 'string');
-        return chars.join('');
-      }).join('');
-      
-      console.log('🧾 [CongressTrades] Reconstructed string:', reconstructedString);
-      
-      // Try to parse as JSON
-      try {
-        const parsedData = JSON.parse(reconstructedString);
-        console.log('🧾 [CongressTrades] Successfully parsed JSON:', parsedData);
-        console.log('🧾 [CongressTrades] Parsed data structure:', {
-          isArray: Array.isArray(parsedData),
-          length: Array.isArray(parsedData) ? parsedData.length : 'not array',
-          firstItem: Array.isArray(parsedData) && parsedData.length > 0 ? parsedData[0] : 'no items'
-        });
+      if (hasNumericKeys) {
+        console.log('🧾 [CongressTrades] Detected broken character array format, attempting to reconstruct...');
         
-        if (Array.isArray(parsedData)) {
-          return renderCongressTradesTable(parsedData);
-        }
-      } catch (error) {
-        console.log('🧾 [CongressTrades] Failed to parse as JSON, displaying as raw string');
+        // Reconstruct the string from character array
+        const reconstructedString = congressData.map((charObj: any) => {
+          const chars = Object.values(charObj).filter(val => typeof val === 'string');
+          return chars.join('');
+        }).join('');
+        
+        console.log('🧾 [CongressTrades] Reconstructed string:', reconstructedString);
         return renderSimpleCongressionalData(reconstructedString);
+      } else {
+        // This is a normal array of objects - process it directly
+        console.log('🧾 [CongressTrades] Processing as normal array of objects');
+        return renderCongressTradesTable(congressData);
       }
     }
   }
   
   // Handle case where congressData is not an array or is empty
   if (!congressData || !Array.isArray(congressData) || congressData.length === 0) {
+    console.log('🧾 [CongressTrades] No valid congressional data found');
     return (
       <div>
         <h6 className="mb-3">🏛️ Congressional Trade Activity</h6>
@@ -66,7 +61,8 @@ const renderCongressTrades = (congressData?: any) => {
     );
   }
 
-  // Handle normal array format
+  // Fallback for any other format
+  console.log('🧾 [CongressTrades] Processing as fallback format');
   return renderCongressTradesTable(congressData);
 };
 
@@ -115,6 +111,18 @@ const renderSimpleCongressionalData = (congressString: string) => {
 // 🏛️ Renders the congressional trades table
 // ============================
 const renderCongressTradesTable = (congressData: any[]) => {
+  console.log('🧾 [CongressTradesTable] Processing congressData:', congressData);
+  console.log('🧾 [CongressTradesTable] Data length:', congressData.length);
+  
+  if (!congressData || congressData.length === 0) {
+    return (
+      <div>
+        <h6 className="mb-3">🏛️ Congressional Trade Activity</h6>
+        <p className="text-muted">No congressional trade data available.</p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <h6 className="mb-3">🏛️ Congressional Trade Activity</h6>
@@ -132,7 +140,10 @@ const renderCongressTradesTable = (congressData: any[]) => {
           </thead>
           <tbody>
             {congressData.map((trade, index) => {
-              console.log(`🧾 [CongressTrades] Processing trade ${index + 1}:`, JSON.stringify(trade, null, 2));
+              console.log(`🧾 [CongressTradesTable] Processing trade ${index + 1}:`, JSON.stringify(trade, null, 2));
+              console.log(`🧾 [CongressTradesTable] Trade ${index + 1} keys:`, Object.keys(trade));
+              console.log(`🧾 [CongressTradesTable] Trade ${index + 1} politician field:`, trade.politician);
+              console.log(`🧾 [CongressTradesTable] Trade ${index + 1} representative field:`, trade.representative);
               
               // Handle both new structure (politician) and legacy structure (representative)
               let politicianInfo, transactionType, amountRange, transactionDate, source;
@@ -160,16 +171,90 @@ const renderCongressTradesTable = (congressData: any[]) => {
                 source = trade.source || trade.link || '#';
               }
               
+              console.log(`🧾 [CongressTradesTable] Extracted data for trade ${index + 1}:`, {
+                politicianInfo,
+                transactionType,
+                amountRange,
+                transactionDate,
+                source
+              });
+              
               // Extract name and party from politician info
-              const [name, partyInfo] = politicianInfo.split('\n');
-              const party = partyInfo ? partyInfo.replace(/(Republican|Democrat)(House|Senate)/, '$1 $2') : '';
-              const isDemocrat = partyInfo?.includes('Democrat');
-              const isRepublican = partyInfo?.includes('Republican');
+              let name = 'Unknown Representative';
+              let party = 'Unknown';
+              let isDemocrat = false;
+              let isRepublican = false;
+              
+              if (politicianInfo) {
+                console.log(`🧾 [CongressTradesTable] Raw politicianInfo: "${politicianInfo}"`);
+                
+                // Try to split by newline first
+                const parts = politicianInfo.split('\n');
+                console.log(`🧾 [CongressTradesTable] Split parts:`, parts);
+                
+                if (parts.length >= 2) {
+                  // Format: "Name\nPartyInfo"
+                  name = parts[0].trim();
+                  const partyInfo = parts[1].trim();
+                  party = partyInfo.replace(/(Republican|Democrat)(House|Senate)/, '$1 $2');
+                  isDemocrat = partyInfo.includes('Democrat');
+                  isRepublican = partyInfo.includes('Republican');
+                } else if (parts.length === 1) {
+                  // Single line - try to extract name and party
+                  const fullText = parts[0].trim();
+                  console.log(`🧾 [CongressTradesTable] Single line text: "${fullText}"`);
+                  
+                  // Try to find party indicators
+                  if (fullText.includes('Republican')) {
+                    const nameMatch = fullText.match(/^(.+?)\s+Republican/);
+                    if (nameMatch) {
+                      name = nameMatch[1].trim();
+                      party = 'Republican';
+                      isRepublican = true;
+                    } else {
+                      name = fullText;
+                    }
+                  } else if (fullText.includes('Democrat')) {
+                    const nameMatch = fullText.match(/^(.+?)\s+Democrat/);
+                    if (nameMatch) {
+                      name = nameMatch[1].trim();
+                      party = 'Democrat';
+                      isDemocrat = true;
+                    } else {
+                      name = fullText;
+                    }
+                  } else {
+                    // No party info found, use the whole text as name
+                    name = fullText;
+                    // Try to infer party from the source URL or other data
+                    if (source && source.includes('capitoltrades.com')) {
+                      // For now, we'll show as "Unknown" party
+                      party = 'Unknown';
+                    } else {
+                      party = 'Unknown';
+                    }
+                  }
+                }
+              }
+              
+              // If we still don't have a name, try to extract from the source URL
+              if (!name || name === 'Unknown Representative') {
+                if (source && source.includes('capitoltrades.com')) {
+                  const urlParts = source.split('/');
+                  const politicianId = urlParts[urlParts.length - 1];
+                  if (politicianId) {
+                    name = `Representative ${politicianId}`;
+                  }
+                }
+              }
+              
+              console.log(`🧾 [CongressTradesTable] Parsed name: "${name}"`);
+              console.log(`🧾 [CongressTradesTable] Parsed party: "${party}"`);
               
               // Use the source from the data, fallback to generated URL
               const politicianUrl = source !== '#' ? source : (name ? `https://www.capitoltrades.com/politicians/${encodeURIComponent(name.toLowerCase().replace(/\s+/g, '-'))}` : '#');
               
-              console.log(`🧾 [CongressTrades] Trade ${index + 1} parsed:`, {
+              console.log(`🧾 [CongressTradesTable] Trade ${index + 1} parsed:`, {
                 name,
                 party,
                 transactionDate,
@@ -520,9 +605,18 @@ const TradeHistory: React.FC = () => {
                                 <Accordion.Header>🏛️ Congressional Trade Activity</Accordion.Header>
                                 <Accordion.Body>
                                   {(() => {
-                                    const congressData = trade.congress || trade.congressTrades;
+                                    // Try multiple possible data sources
+                                    const congressData = trade.congressTrades || trade.congress || [];
                                     console.log('🧾 [TradeHistory] Rendering congress data for trade:', trade.tickers);
+                                    console.log('🧾 [TradeHistory] Congress data type:', typeof congressData);
                                     console.log('🧾 [TradeHistory] Congress data:', congressData);
+                                    console.log('🧾 [TradeHistory] Is array:', Array.isArray(congressData));
+                                    console.log('🧾 [TradeHistory] Length:', Array.isArray(congressData) ? congressData.length : 'not array');
+                                    
+                                    if (Array.isArray(congressData) && congressData.length > 0) {
+                                      console.log('🧾 [TradeHistory] First item:', congressData[0]);
+                                    }
+                                    
                                     return renderCongressTrades(congressData);
                                   })()}
                                 </Accordion.Body>

@@ -57,6 +57,9 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ✅ Serve static files from uploads directory
+app.use('/uploads', express.static('uploads'));
+
 app.set('trust proxy', 1); // ✅ Required when behind a proxy like Vercel/Render for secure cookies
 
 // ✅ Session middleware (required for Passport.js to persist login state)

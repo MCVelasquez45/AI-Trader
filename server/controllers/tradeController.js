@@ -529,8 +529,171 @@ export const getAllTrades = async (req, res) => {
       });
     }
     
+    // Convert any string-based congressional data to array format
+    const processedTrades = trades.map(trade => {
+      const tradeObj = trade.toObject();
+      
+      // Handle congressTrades field
+      if (typeof tradeObj.congressTrades === 'string') {
+        console.log('🔍 [getAllTrades] Converting congressional string to array format');
+        try {
+          // Try to parse as JSON first
+          const parsed = JSON.parse(tradeObj.congressTrades);
+          if (Array.isArray(parsed)) {
+            tradeObj.congressTrades = parsed;
+            console.log('✅ [getAllTrades] Converted to array format:', parsed.length, 'trades');
+          } else {
+            // If it's not an array, create a single item array
+            tradeObj.congressTrades = [{
+              politician: tradeObj.congressTrades,
+              transactionType: 'N/A',
+              amountRange: 'N/A',
+              transactionDate: new Date().toISOString(),
+              source: '#'
+            }];
+            console.log('✅ [getAllTrades] Created single item array from string');
+          }
+        } catch (error) {
+          console.log('❌ [getAllTrades] Failed to parse string as JSON, creating fallback array');
+          tradeObj.congressTrades = [{
+            politician: tradeObj.congressTrades,
+            transactionType: 'N/A',
+            amountRange: 'N/A',
+            transactionDate: new Date().toISOString(),
+            source: '#'
+          }];
+        }
+      } else if (Array.isArray(tradeObj.congressTrades) && tradeObj.congressTrades.length > 0) {
+        console.log('🔍 [getAllTrades] Processing congressional array with', tradeObj.congressTrades.length, 'items');
+        
+        // Check if it's the broken character array format
+        const firstItem = tradeObj.congressTrades[0];
+        console.log('🔍 [getAllTrades] First item type:', typeof firstItem);
+        console.log('🔍 [getAllTrades] First item keys:', Object.keys(firstItem));
+        
+        if (firstItem && typeof firstItem === 'object') {
+          const keys = Object.keys(firstItem);
+          const hasNumericKeys = keys.some(key => !isNaN(Number(key)));
+          
+          console.log('🔍 [getAllTrades] Has numeric keys:', hasNumericKeys);
+          console.log('🔍 [getAllTrades] Sample keys:', keys.slice(0, 5));
+          
+          if (hasNumericKeys) {
+            console.log('🔍 [getAllTrades] Converting broken character array format');
+            try {
+              // Reconstruct the string from character array
+              const reconstructedString = keys
+                .sort((a, b) => Number(a) - Number(b))
+                .map(key => {
+                  const value = tradeObj.congressTrades[key];
+                  // Handle both string and object values
+                  return typeof value === 'string' ? value : (value && typeof value === 'object' ? Object.values(value)[0] : '');
+                })
+                .join('');
+              
+              console.log('✅ [getAllTrades] Reconstructed string:', reconstructedString.substring(0, 100) + '...');
+              
+              // Parse the reconstructed string into structured congressional data
+              const lines = reconstructedString.split('\n').filter(line => line.trim());
+              console.log('🔍 [getAllTrades] Parsed lines:', lines.length);
+              console.log('🔍 [getAllTrades] First few lines:', lines.slice(0, 8));
+              
+              const congressData = [];
+              
+              // Look for patterns like "• Name\nPartyInfo\nTransactionInfo\nLink"
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                // Check if this line starts with a bullet point (•)
+                if (line.startsWith('•')) {
+                  // Extract politician name (remove the bullet point)
+                  const politician = line.substring(1).trim();
+                  
+                  // Look for the next few lines to extract party, transaction, and link
+                  let party = 'Unknown';
+                  let transactionType = 'N/A';
+                  let amountRange = 'N/A';
+                  let transactionDate = 'N/A';
+                  let source = '#';
+                  
+                  // Check next line for party info
+                  if (i + 1 < lines.length) {
+                    const partyLine = lines[i + 1].trim();
+                    if (partyLine.includes('Republican') || partyLine.includes('Democrat')) {
+                      party = partyLine;
+                    }
+                  }
+                  
+                  // Check next few lines for transaction info
+                  for (let j = i + 1; j < Math.min(i + 4, lines.length); j++) {
+                    const checkLine = lines[j].trim();
+                    
+                    // Look for transaction pattern: "BUY/SELL (amount) on date"
+                    const transactionMatch = checkLine.match(/(BUY|SELL)\s+\(([^)]+)\)\s+on\s+(\d+\s+\w+)/);
+                    if (transactionMatch) {
+                      transactionType = transactionMatch[1].toLowerCase();
+                      amountRange = transactionMatch[2];
+                      transactionDate = transactionMatch[3];
+                    }
+                    
+                    // Look for link pattern
+                    const linkMatch = checkLine.match(/Link:\s*(https:\/\/[^\s]+)/);
+                    if (linkMatch) {
+                      source = linkMatch[1];
+                    }
+                  }
+                  
+                  congressData.push({
+                    politician,
+                    party,
+                    transactionType,
+                    amountRange,
+                    transactionDate,
+                    source
+                  });
+                  
+                  console.log('✅ [getAllTrades] Parsed trade:', {
+                    politician,
+                    party,
+                    transactionType,
+                    amountRange,
+                    transactionDate,
+                    source
+                  });
+                }
+              }
+              
+              if (congressData.length > 0) {
+                tradeObj.congressTrades = congressData;
+                console.log('✅ [getAllTrades] Converted to structured format:', congressData.length, 'trades');
+              } else {
+                // Fallback: create a single item with the reconstructed string
+                tradeObj.congressTrades = [{
+                  politician: reconstructedString.substring(0, 100) + '...',
+                  transactionType: 'N/A',
+                  amountRange: 'N/A',
+                  transactionDate: 'N/A',
+                  source: '#'
+                }];
+                console.log('⚠️ [getAllTrades] Fallback to string format');
+              }
+            } catch (error) {
+              console.log('❌ [getAllTrades] Failed to reconstruct character array:', error.message);
+              tradeObj.congressTrades = [];
+            }
+          }
+        }
+      } else if (!Array.isArray(tradeObj.congressTrades)) {
+        // If it's not a string and not an array, set to empty array
+        tradeObj.congressTrades = [];
+        console.log('✅ [getAllTrades] Set undefined congressTrades to empty array');
+      }
+      
+      return tradeObj;
+    });
+    
     // Ensure we're sending the full array
-    return res.status(200).json(trades);
+    return res.status(200).json(processedTrades);
   } catch (error) {
     console.error('❌ [getAllTrades] Error:', error);
     res.status(500).json({ error: 'Failed to fetch trade history' });

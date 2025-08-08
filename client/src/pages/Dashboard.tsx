@@ -240,8 +240,12 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
                     }
                     alt={`${user?.name || 'User'}'s avatar`}
                     className="rounded-circle border border-secondary"
-                    width={80}
-                    height={80}
+                    style={{
+                      width: '80px',
+                      height: '80px',
+                      objectFit: 'cover',
+                      objectPosition: 'center top'
+                    }}
                   />
                   <div className="pt-1">
                     <h4 className="mb-1">{user?.name || 'AI-Trader Guest'}</h4>
@@ -281,8 +285,12 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
                       }
                       alt={`${user?.name || 'User'}'s avatar`}
                       className="rounded-circle border border-secondary"
-                      width={80}
-                      height={80}
+                      style={{
+                        width: '80px',
+                        height: '80px',
+                        objectFit: 'cover',
+                        objectPosition: 'center top'
+                      }}
                     />
                     <div className="pt-1">
                       <h4 className="mb-1">{user?.name || 'AI-Trader Guest'}</h4>
