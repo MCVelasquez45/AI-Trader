@@ -49,7 +49,7 @@ app.use(cors({
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-guest-id'],
   credentials: true // 🔐 Important for session cookies
 }));
 
@@ -57,14 +57,17 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.set('trust proxy', 1); // ✅ Required when behind a proxy like Vercel/Render for secure cookies
+
 // ✅ Session middleware (required for Passport.js to persist login state)
 app.use(session({
   secret: process.env.SESSION_SECRET || 'defaultsecret', // 🔐 Use strong secret in production
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // ✅ Use true if behind HTTPS reverse proxy like Vercel/Render
+    secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 1000 * 60 * 60 * 24 // ⏱️ 1 day
   }
 }));

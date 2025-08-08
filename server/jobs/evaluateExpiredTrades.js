@@ -60,7 +60,7 @@ async function evaluateExpiredTrades() {
     // 🗃 Query all trades that are expired (regardless of outcome)
     const trades = await TradeRecommendation.find({
       entryPrice: { $ne: null }
-    }).lean(); // lean for performance (optional)
+    }); // Remove lean() to get full Mongoose documents
 
     const expired = trades.filter(trade => {
       const expDate = new Date(trade.expiryDate);
@@ -69,7 +69,8 @@ async function evaluateExpiredTrades() {
 
 
 
-    console.log(`📊 Found ${trades.length} expired trades to evaluate`);
+    console.log(`📊 Found ${expired.length} expired trades to evaluate`);
+    console.log(`📊 Total trades in database: ${trades.length}`);
 
     for (const trade of expired) {
       // Format the expiration date into YYYY-MM-DD for the API
@@ -119,9 +120,12 @@ async function evaluateExpiredTrades() {
           trade.markModified('exitPrices');
           trade.markModified('evaluationSnapshot');
 
-          await trade.save();
-
-          console.log(`✅ ${ticker} → Outcome: ${outcome}, Exit: $${exitPrice.toFixed(2)}, ROI: ${percentageChange.toFixed(2)}%`);
+          try {
+            await trade.save();
+            console.log(`✅ ${ticker} → Outcome: ${outcome}, Exit: $${exitPrice.toFixed(2)}, ROI: ${percentageChange.toFixed(2)}%`);
+          } catch (saveErr) {
+            console.error(`❌ Failed to save trade evaluation for ${ticker}:`, saveErr.message);
+          }
 
         } catch (err) {
           console.error(`❌ Evaluation error for ${ticker}:`, err.message);

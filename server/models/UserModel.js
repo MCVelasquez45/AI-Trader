@@ -18,16 +18,21 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     lowercase: true,
+    trim: true,
     unique: true, // 🔐 Email must be unique across all users
   },
   password: {
     type: String,
     minlength: 6, // ✅ Minimum password length for local users
   },
-  avatar: String, // 🌄 Google users will have profile photo here
+  avatar: {
+    type: String,
+    default: '', // ⬅️ fallback if no image is uploaded or generated
+    trim: true,
+  },
   bio: {
     type: String,
-    default: '',
+    default: '💡 Dream big. Trade smart.', // ✅ Fallback bio message
     trim: true,
   }
 }, { timestamps: true }); // ⏱ Adds createdAt and updatedAt fields

@@ -24,24 +24,33 @@ passport.use(
         console.log(`📧 Email: ${profile.emails?.[0]?.value}`);
         console.log(`🖼️ Avatar: ${profile.photos?.[0]?.value}`);
 
-        // 🔍 Check if the user already exists in MongoDB
-        const existingUser = await User.findOne({ googleId: profile.id });
+        // Always use lowercase email for lookup and storage
+        const googleId = profile.id;
+        const email = profile.emails?.[0]?.value?.toLowerCase() || '';
 
-        if (existingUser) {
-          console.log(`✅ Existing user found: ${existingUser.name}`);
-          return done(null, existingUser); // ➡️ Proceed with existing user
+        let user = await User.findOne({ googleId });
+
+        if (!user) {
+          // Prevent duplicates: check for existing user with the same email but no googleId
+          user = await User.findOne({ email });
+          if (user) {
+            user.googleId = googleId;
+            await user.save();
+            console.log(`🔄 Linked Google account to existing user: ${user.name}`);
+          } else {
+            user = await User.create({
+              googleId,
+              name: profile.displayName,
+              email,
+              avatar: profile.photos?.[0]?.value || '',
+            });
+            console.log(`🎉 New Google user created: ${user.name}`);
+          }
+        } else {
+          console.log(`✅ Existing Google user found: ${user.name}`);
         }
 
-        // 🆕 If new, create and save the user
-        const newUser = await User.create({
-          googleId: profile.id,
-          name: profile.displayName,
-          email: profile.emails?.[0]?.value || '',
-          avatar: profile.photos?.[0]?.value || '',
-        });
-
-        console.log(`🎉 New user created: ${newUser.name}`);
-        return done(null, newUser);
+        return done(null, user);
       } catch (err) {
         console.error('❌ [Passport] GoogleStrategy error:', err.message);
         return done(err, null);
@@ -66,8 +75,8 @@ passport.deserializeUser(async (id, done) => {
       console.warn('⚠️ User not found during deserialization');
       return done(null, false);
     }
-
-    console.log(`🔓 [Passport] Session user restored: ${user.name}`);
+    // Fallback to email if user.name is missing
+    console.log(`🔓 [Passport] Session user restored: ${user.name || user.email}`);
     done(null, user); // Attach full user object to `req.user`
   } catch (err) {
     console.error(`❌ [Passport] deserializeUser error:`, err.message);
