@@ -49,8 +49,24 @@ const scrapeCapitolTrades = async (issuerId) => {
         const type = columns[4]?.innerText.trim().toLowerCase() || '';
         const amount = columns[5]?.innerText.trim() || '';
         const link = row.querySelector('a')?.href || '';
+        
+        // 🏛️ Extract party information from the representative column
+        // The representative column usually contains "Name\nParty" format
+        const representativeText = columns[0]?.innerText.trim() || '';
+        const lines = representativeText.split('\n');
+        const name = lines[0]?.trim() || '';
+        const party = lines[1]?.trim() || '';
+        
+        // Combine name and party for the representative field
+        const fullRepresentative = party ? `${name}\n${party}` : name;
 
-        return { date, representative, type, amount, link };
+        return { 
+          date, 
+          representative: fullRepresentative, 
+          type, 
+          amount, 
+          link 
+        };
       });
     });
 

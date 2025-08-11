@@ -40,6 +40,18 @@ export interface Indicators {
 }
 
 // ============================
+// 🏛️ Congressional Trade Interface
+// ============================
+export interface CongressTrade {
+  ticker?: string;
+  politician: string;           // e.g., "John Doe\nRepublican House"
+  transactionType?: string;     // 'buy' | 'sell' | etc.
+  amountRange?: string;         // '$1,001 - $15,000'
+  transactionDate?: string | Date; // ISO string or Date
+  source?: string;              // CapitolTrades link
+}
+
+// ============================
 // 📘 Trade Record Interface
 // ============================
 
@@ -49,7 +61,7 @@ export interface TradeRecord {
   capital: number;                    // 💵 Capital used for trade
   riskTolerance: string;             // ⚖️ 'low', 'medium', 'high'
   entryPrice: number;                // 💵 Entry price of stock at trade time
-  expiryDate: string;                // 📅 Option expiry (ISO: "YYYY-MM-DD")
+  expiryDate: string | Date;         // 📅 Option expiry (ISO or Date)
   outcome: string;                   // 🟢 'win', 🔴 'loss', ⏳ 'pending'
   gptResponse: string;               // 🧠 GPT explanation summary
   gptPrompt: string;                 // 📜 Prompt sent to GPT
@@ -59,8 +71,8 @@ export interface TradeRecord {
   // ✅ Optional trade details
   option?: OptionContract;           // 🎟️ Option contract data
   indicators?: Indicators;           // 📊 RSI, MACD, VWAP, etc.
-  congressTrades?: string;           // 🏛️ CapitolTrades notes (legacy)
-  congress?: any[];                  // 🏛️ Congressional trade data (new format)
+  congressTrades?: CongressTrade[] | string; // 🏛️ Congressional trades (array) or legacy string
+  congress?: CongressTrade[];        // 🏛️ New normalized format
   sentimentSummary?: string;         // 🗞️ News sentiment summary
   targetPrice?: number;              // 🎯 Target (profit)
   stopLoss?: number;                 // 🛑 Stop loss

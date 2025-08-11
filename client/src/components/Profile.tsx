@@ -28,8 +28,12 @@ const Profile: React.FC = () => {
           src={user.avatar || 'https://via.placeholder.com/80'}
           alt={`${user.name}'s avatar`}
           className="rounded-circle border"
-          width={80}
-          height={80}
+          style={{
+            width: '80px',
+            height: '80px',
+            objectFit: 'cover',
+            objectPosition: 'center top'
+          }}
         />
 
         {/* 📋 Name, Email, Bio */}

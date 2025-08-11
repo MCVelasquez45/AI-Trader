@@ -366,15 +366,30 @@ export const analyzeTrade = async (req, res) => {
           expiryDate: normalizedExpiryDate, // ✅ Use the normalized Date object for database
           option: contract, // ✅ Use original contract with proper date format
           sentimentSummary: enrichedData.sentiment,
+          // Only include well-formed congressional trades; drop placeholder/unknown items
           congressTrades: Array.isArray(enrichedData.congress)
-            ? enrichedData.congress.map(trade => ({
-                ticker: trade.ticker || '',
-                politician: trade.representative || '',
-                transactionDate: new Date(trade.date),
-                transactionType: trade.type.toLowerCase(),
-                amountRange: trade.amount,
-                source: trade.link
-              }))
+            ? enrichedData.congress
+                .filter(trade => {
+                  if (!trade) return false;
+                  const rep = (trade.representative || '').toString().toLowerCase();
+                  const type = (trade.type || '').toString();
+                  const amt = (trade.amount || '').toString();
+                  const link = (trade.link || '').toString();
+                  // Drop placeholder/unknown entries
+                  if (!rep || rep.includes('unknown')) return false;
+                  if (!type || type === 'N/A') return false;
+                  if (!amt || amt === 'N/A') return false;
+                  if (!link || link === '#') return false;
+                  return true;
+                })
+                .map(trade => ({
+                  ticker: ticker,
+                  politician: trade.representative,
+                  transactionDate: trade.date ? new Date(trade.date) : undefined,
+                  transactionType: trade.type ? trade.type.toLowerCase() : undefined,
+                  amountRange: trade.amount,
+                  source: trade.link
+                }))
             : [],
           indicators: enrichedData.indicators
         });
@@ -399,15 +414,29 @@ export const analyzeTrade = async (req, res) => {
             expectedROI,
             option: displayContract, // ✅ Use display contract for frontend
             sentimentSummary: enrichedData.sentiment || 'No news sentiment available.',
+            // Only include well-formed congressional trades in the API response
             congressTrades: Array.isArray(enrichedData.congress)
-              ? enrichedData.congress.map(trade => ({
-                  ticker: trade.ticker || '',
-                  politician: trade.representative || '',
-                  transactionDate: new Date(trade.date),
-                  transactionType: trade.type.toLowerCase(),
-                  amountRange: trade.amount,
-                  source: trade.link
-                }))
+              ? enrichedData.congress
+                  .filter(trade => {
+                    if (!trade) return false;
+                    const rep = (trade.representative || '').toString().toLowerCase();
+                    const type = (trade.type || '').toString();
+                    const amt = (trade.amount || '').toString();
+                    const link = (trade.link || '').toString();
+                    if (!rep || rep.includes('unknown')) return false;
+                    if (!type || type === 'N/A') return false;
+                    if (!amt || amt === 'N/A') return false;
+                    if (!link || link === '#') return false;
+                    return true;
+                  })
+                  .map(trade => ({
+                    ticker: ticker,
+                    politician: trade.representative,
+                    transactionDate: trade.date ? new Date(trade.date) : undefined,
+                    transactionType: trade.type ? trade.type.toLowerCase() : undefined,
+                    amountRange: trade.amount,
+                    source: trade.link
+                  }))
               : [],
             indicators: enrichedData.indicators ?? {
               rsi: null,
@@ -529,8 +558,132 @@ export const getAllTrades = async (req, res) => {
       });
     }
     
+    // Convert congressional data to clean array format for UI
+    const processedTrades = trades.map(trade => {
+      const tradeObj = trade.toObject();
+      
+      // Preserve the original congress field if it exists
+      if (Array.isArray(tradeObj.congress) && tradeObj.congress.length > 0) {
+        // Use the congress field as-is if it's already in the correct format
+        console.log(`✅ [getAllTrades] Trade ${tradeObj._id} has congress field with ${tradeObj.congress.length} entries`);
+      } else if (Array.isArray(tradeObj.congressTrades) && tradeObj.congressTrades.length > 0) {
+        // congressTrades is already an array - preserve it
+        console.log(`✅ [getAllTrades] Trade ${tradeObj._id} has congressTrades array with ${tradeObj.congressTrades.length} entries`);
+      } else if (tradeObj.congressTrades && typeof tradeObj.congressTrades === 'object' && !Array.isArray(tradeObj.congressTrades)) {
+        // congressTrades is an object - log its structure for debugging
+        console.log(`🔍 [getAllTrades] Trade ${tradeObj._id} has congressTrades object:`, {
+          type: typeof tradeObj.congressTrades,
+          keys: Object.keys(tradeObj.congressTrades),
+          sampleValues: Object.values(tradeObj.congressTrades).slice(0, 3)
+        });
+      } else if (!Array.isArray(tradeObj.congressTrades) && typeof tradeObj.congressTrades === 'string') {
+        const text = tradeObj.congressTrades;
+        const items = [];
+        // Split into blocks by blank line, then extract fields
+        const blocks = text.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
+        for (const block of blocks) {
+          const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+          const nameLine = lines.find(l => l.startsWith('•')) || lines[0];
+          const metaLine = lines.find(l => /(BUY|SELL)\s*\(/i.test(l)) || '';
+          const linkLine = lines.find(l => l.startsWith('🔗')) || '';
+          const politician = nameLine ? nameLine.replace(/^•\s*/, '').trim() : '';
+          const transactionTypeMatch = metaLine.match(/(BUY|SELL)/i);
+          const amountMatch = metaLine.match(/\(([^)]+)\)/);
+          const dateMatch = metaLine.match(/on\s+(.+)$/i);
+          const urlMatch = linkLine.match(/https?:\/\/\S+/);
+          const obj = {
+            politician: politician || undefined,
+            transactionType: transactionTypeMatch ? transactionTypeMatch[1].toLowerCase() : undefined,
+            amountRange: amountMatch ? amountMatch[1] : undefined,
+            transactionDate: dateMatch ? new Date(dateMatch[1]).toISOString() : undefined,
+            source: urlMatch ? urlMatch[0] : undefined
+          };
+          // Keep only well-formed entries
+          if (
+            obj.politician &&
+            obj.transactionType &&
+            obj.amountRange &&
+            obj.source && obj.source !== '#'
+          ) {
+            items.push(obj);
+          }
+        }
+        tradeObj.congressTrades = items;
+      }
+
+      // Ensure array shape and drop invalid/placeholder entries
+      if (!Array.isArray(tradeObj.congressTrades)) {
+        tradeObj.congressTrades = [];
+      } else if (tradeObj.congressTrades.length > 0) {
+        tradeObj.congressTrades = tradeObj.congressTrades
+          .map((ct) => {
+            if (typeof ct === 'object' && ct !== null) {
+              // Already structured
+              if (ct.politician && ct.transactionType && ct.amountRange && ct.source && ct.source !== '#') {
+                return ct;
+              }
+              // Convert old shape
+              if (ct.representative && ct.type && ct.amount) {
+                return {
+                  politician: ct.representative,
+                  transactionType: ct.type.toLowerCase(),
+                  amountRange: ct.amount,
+                  transactionDate: ct.date ? new Date(ct.date).toISOString() : undefined,
+                  source: ct.link || undefined
+                };
+              }
+            }
+            // Skip invalid entries
+            return null;
+          })
+          .filter((ct) => !!ct && ct.politician && !ct.politician.toLowerCase().includes('unknown') && ct.source && ct.source !== '#');
+      }
+      
+      // Ensure congress field is preserved if it exists
+      if (Array.isArray(tradeObj.congress) && tradeObj.congress.length > 0) {
+        // Keep the original congress field
+        console.log(`✅ [getAllTrades] Preserving congress field for trade ${tradeObj._id}: ${tradeObj.congress.length} entries`);
+      } else if (Array.isArray(tradeObj.congressTrades) && tradeObj.congressTrades.length > 0) {
+        // Copy congressTrades to congress field for consistency
+        tradeObj.congress = tradeObj.congressTrades;
+        console.log(`✅ [getAllTrades] Copied congressTrades to congress field for trade ${tradeObj._id}: ${tradeObj.congress.length} entries`);
+      } else if (tradeObj.congressTrades && typeof tradeObj.congressTrades === 'object' && !Array.isArray(tradeObj.congressTrades)) {
+        // Handle case where congressTrades is an object (like from your logs: "object - 15")
+        // Convert object to array format
+        const congressArray = Object.values(tradeObj.congressTrades).filter(val => 
+          val && typeof val === 'object' && (val.politician || val.representative)
+        );
+        if (congressArray.length > 0) {
+          tradeObj.congress = congressArray;
+          tradeObj.congressTrades = congressArray;
+          console.log(`✅ [getAllTrades] Converted congressTrades object to array for trade ${tradeObj._id}: ${congressArray.length} entries`);
+        }
+      }
+      
+      // Final count log
+      console.log(`✅ [getAllTrades] Final congressional data for trade ${tradeObj._id}:`, {
+        congress: tradeObj.congress?.length || 0,
+        congressTrades: tradeObj.congressTrades?.length || 0
+      });
+      
+      return tradeObj;
+    });
+    
+    // Log what we're sending
+    console.log('🧠 [getAllTrades] Sending response with processed trades:');
+    if (processedTrades.length > 0) {
+      const sampleTrade = processedTrades[0];
+      console.log('🧠 [getAllTrades] Sample processed trade congressional data:', {
+        id: sampleTrade._id,
+        congress: sampleTrade.congress?.length || 0,
+        congressTrades: sampleTrade.congressTrades?.length || 0,
+        congressSample: sampleTrade.congress?.[0] || 'none',
+        congressTradesSample: sampleTrade.congressTrades?.[0] || 'none'
+      });
+    }
+    
     // Ensure we're sending the full array
-    return res.status(200).json(trades);
+    return res.status(200).json(processedTrades);
   } catch (error) {
     console.error('❌ [getAllTrades] Error:', error);
     res.status(500).json({ error: 'Failed to fetch trade history' });

@@ -1,6 +1,6 @@
 // ✅ File: context/ContractContext.tsx
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useMemo } from 'react';
 import type { OptionContract, ClosestITMContract } from '../types/OptionContract';
 
 interface ContractMap {
@@ -49,8 +49,14 @@ export const ContractProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   console.log('🧪 <ContractProvider> mounted with empty validatedContracts');
 
+  // 🎯 Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    validatedContracts,
+    setValidatedContracts
+  }), [validatedContracts]);
+
   return (
-    <ContractContext.Provider value={{ validatedContracts, setValidatedContracts }}>
+    <ContractContext.Provider value={contextValue}>
       {children}
     </ContractContext.Provider>
   );
