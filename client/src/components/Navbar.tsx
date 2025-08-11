@@ -1,7 +1,7 @@
 // ✅ File: components/Navbar.tsx
 
 // 📦 React + Router + Auth Context
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from 'react-bootstrap';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,13 +10,29 @@ interface NavbarProps {
   setShowAuthModal: (show: boolean) => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ setShowAuthModal }) => {
+const Navbar: React.FC<NavbarProps> = React.memo(({ setShowAuthModal }) => {
   const location = useLocation();
   const { user, authenticated, logout } = useAuth();
 
   console.log('🧭 [Navbar] Current path:', location.pathname);
   console.log('👤 [Navbar] Authenticated:', authenticated);
   console.log('👤 [Navbar] User:', user);
+
+  // 🔄 Memoized event handlers to prevent unnecessary re-renders
+  const handleLogout = useCallback(() => {
+    console.log('👋 [Navbar] User clicked Sign Out');
+    logout();
+  }, [logout]);
+
+  const handleSignInClick = useCallback(() => {
+    console.log('🔐 [Navbar] User clicked Sign In / Join');
+    setShowAuthModal(true);
+  }, [setShowAuthModal]);
+
+  // 🎨 Memoized computed values
+  const isDashboardActive = useMemo(() => location.pathname === '/dashboard', [location.pathname]);
+  const isMarketActive = useMemo(() => location.pathname === '/market', [location.pathname]);
+  const userFirstName = useMemo(() => user?.name?.split(' ')[0] || 'User', [user?.name]);
 
   return (
     <header className="py-3 border-bottom" style={{ backgroundColor: 'transparent' }}>
@@ -41,9 +57,7 @@ const Navbar: React.FC<NavbarProps> = ({ setShowAuthModal }) => {
               <li className="nav-item">
                 <Link
                   to="/dashboard"
-                  className={`nav-link ${
-                    location.pathname === '/dashboard' ? 'text-warning' : 'text-light'
-                  }`}
+                  className={`nav-link ${isDashboardActive ? 'text-warning' : 'text-light'}`}
                 >
                   Dashboard
                 </Link>
@@ -51,9 +65,7 @@ const Navbar: React.FC<NavbarProps> = ({ setShowAuthModal }) => {
               <li className="nav-item">
                 <Link
                   to="/market"
-                  className={`nav-link ${
-                    location.pathname === '/market' ? 'text-warning' : 'text-light'
-                  }`}
+                  className={`nav-link ${isMarketActive ? 'text-warning' : 'text-light'}`}
                 >
                   Market Data
                 </Link>
@@ -67,12 +79,9 @@ const Navbar: React.FC<NavbarProps> = ({ setShowAuthModal }) => {
             <div className="d-flex align-items-center">
               {authenticated ? (
                 <span className="nav-item text-light">
-                  👋 {user?.name.split(' ')[0]}
+                  👋 {userFirstName}
                   <button
-                    onClick={() => {
-                      console.log('👋 [Navbar] User clicked Sign Out');
-                      logout();
-                    }}
+                    onClick={handleLogout}
                     className="btn btn-link text-light p-0 ps-2"
                   >
                     Sign Out
@@ -82,10 +91,7 @@ const Navbar: React.FC<NavbarProps> = ({ setShowAuthModal }) => {
                 <Button
                   variant="link"
                   className="nav-item text-light text-decoration-none"
-                  onClick={() => {
-                    console.log('🔐 [Navbar] User clicked Sign In / Join');
-                    setShowAuthModal(true);
-                  }}
+                  onClick={handleSignInClick}
                 >
                   Sign In / Join
                 </Button>
@@ -96,6 +102,8 @@ const Navbar: React.FC<NavbarProps> = ({ setShowAuthModal }) => {
       </div>
     </header>
   );
-};
+});
+
+Navbar.displayName = 'Navbar';
 
 export default Navbar;

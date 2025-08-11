@@ -111,10 +111,59 @@ const renderSimpleCongressionalData = (congressString: string) => {
 // 🏛️ Renders the congressional trades table
 // ============================
 const renderCongressTradesTable = (congressData: any[]) => {
-  console.log('🧾 [CongressTradesTable] Processing congressData:', congressData);
-  console.log('🧾 [CongressTradesTable] Data length:', congressData.length);
-  
-  if (!congressData || congressData.length === 0) {
+  console.log('🧾 [CongressTradesTable] Raw congressData:', congressData);
+  console.log('🧾 [CongressTradesTable] Data length:', Array.isArray(congressData) ? congressData.length : 'not array');
+
+  if (!Array.isArray(congressData) || congressData.length === 0) {
+    return (
+      <div>
+        <h6 className="mb-3">🏛️ Congressional Trade Activity</h6>
+        <p className="text-muted">No congressional trade data available.</p>
+      </div>
+    );
+  }
+
+  // Normalize to a consistent shape and filter out placeholders/invalid rows
+  const normalized = congressData
+    .map((trade: any) => {
+      if (trade && typeof trade === 'object') {
+        if (trade.politician || trade.transactionType || trade.amountRange || trade.source) {
+          return {
+            politician: trade.politician,
+            transactionType: trade.transactionType,
+            amountRange: trade.amountRange,
+            transactionDate: trade.transactionDate,
+            source: trade.source
+          };
+        }
+        if (trade.representative || trade.type || trade.amount || trade.link || trade.date) {
+          return {
+            politician: trade.representative,
+            transactionType: trade.type ? String(trade.type).toLowerCase() : undefined,
+            amountRange: trade.amount,
+            transactionDate: trade.date,
+            source: trade.link
+          };
+        }
+      }
+      return null;
+    })
+    .filter(Boolean)
+    .filter((ct: any) => {
+      const pol = (ct.politician || '').toString().trim().toLowerCase();
+      const type = (ct.transactionType || '').toString().trim();
+      const amt = (ct.amountRange || '').toString().trim();
+      const src = (ct.source || '').toString().trim();
+      if (!pol || pol.includes('unknown')) return false;
+      if (!type || type === 'N/A') return false;
+      if (!amt || amt === 'N/A') return false;
+      if (!src || src === '#') return false;
+      return true;
+    });
+
+  console.log('🧾 [CongressTradesTable] Normalized + filtered:', normalized);
+
+  if (normalized.length === 0) {
     return (
       <div>
         <h6 className="mb-3">🏛️ Congressional Trade Activity</h6>
@@ -139,37 +188,17 @@ const renderCongressTradesTable = (congressData: any[]) => {
             </tr>
           </thead>
           <tbody>
-            {congressData.map((trade, index) => {
+            {normalized.map((trade: any, index: number) => {
               console.log(`🧾 [CongressTradesTable] Processing trade ${index + 1}:`, JSON.stringify(trade, null, 2));
               console.log(`🧾 [CongressTradesTable] Trade ${index + 1} keys:`, Object.keys(trade));
               console.log(`🧾 [CongressTradesTable] Trade ${index + 1} politician field:`, trade.politician);
-              console.log(`🧾 [CongressTradesTable] Trade ${index + 1} representative field:`, trade.representative);
               
-              // Handle both new structure (politician) and legacy structure (representative)
-              let politicianInfo, transactionType, amountRange, transactionDate, source;
-              
-              if (trade.politician) {
-                // New structure: { politician, transactionDate, transactionType, amountRange, source }
-                politicianInfo = trade.politician || '';
-                transactionType = trade.transactionType || 'N/A';
-                amountRange = trade.amountRange || 'N/A';
-                transactionDate = trade.transactionDate ? new Date(trade.transactionDate).toLocaleDateString() : 'N/A';
-                source = trade.source || '#';
-              } else if (trade.representative) {
-                // Legacy structure: { representative, type, amount, date, link }
-                politicianInfo = trade.representative || '';
-                transactionType = trade.type || 'N/A';
-                amountRange = trade.amount || 'N/A';
-                transactionDate = trade.date || 'N/A';
-                source = trade.link || '#';
-              } else {
-                // Fallback for any other structure
-                politicianInfo = trade.name || trade.politician || trade.representative || 'Unknown';
-                transactionType = trade.transactionType || trade.type || 'N/A';
-                amountRange = trade.amountRange || trade.amount || 'N/A';
-                transactionDate = trade.transactionDate ? new Date(trade.transactionDate).toLocaleDateString() : (trade.date || 'N/A');
-                source = trade.source || trade.link || '#';
-              }
+              // Use normalized shape
+              const politicianInfo = trade.politician || '';
+              const transactionType = trade.transactionType || 'N/A';
+              const amountRange = trade.amountRange || 'N/A';
+              const transactionDate = trade.transactionDate ? new Date(trade.transactionDate).toLocaleDateString() : 'N/A';
+              const source = trade.source || '#';
               
               console.log(`🧾 [CongressTradesTable] Extracted data for trade ${index + 1}:`, {
                 politicianInfo,
@@ -287,15 +316,19 @@ const renderCongressTradesTable = (congressData: any[]) => {
                     </span>
                   </td>
                   <td>
-                    <a
-                      href={politicianUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-outline-info btn-sm"
-                      title="View representative's trading history on CapitolTrades"
-                    >
-                      👤 View Profile
-                    </a>
+                    {politicianUrl && politicianUrl !== '#' ? (
+                      <a
+                        href={politicianUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-outline-info btn-sm"
+                        title="View representative's trading history on CapitolTrades"
+                      >
+                        👤 View Profile
+                      </a>
+                    ) : (
+                      <span className="text-muted">N/A</span>
+                    )}
                   </td>
                 </tr>
               );
@@ -526,7 +559,7 @@ const TradeHistory: React.FC = () => {
                                 <p><strong>📣 Recommendation:</strong> {trade.recommendationDirection.toUpperCase()}</p>
                                 <p><strong>💪 Confidence:</strong> {trade.confidence}</p>
 
-                                <p><strong>🗓️ GPT Expiry Date:</strong> {trade.expiryDate}</p>
+                                <p><strong>🗓️ GPT Expiry Date:</strong> {formatDate(trade.expiryDate)}</p>
                                 <p><strong>📍 Entry:</strong> {formatDollar(trade.entryPrice)}</p>
                                 <p><strong>🎯 Target:</strong> {trade.targetPrice !== undefined ? formatDollar(trade.targetPrice) : fallbackTarget(trade.entryPrice)}</p>
                                 <p><strong>🛑 Stop:</strong> {trade.stopLoss !== undefined ? formatDollar(trade.stopLoss) : fallbackStop(trade.entryPrice)}</p>

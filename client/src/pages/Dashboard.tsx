@@ -11,6 +11,29 @@ import TradeHistory from '../components/TradeHistory';
 
 import type { AnalysisData } from '../types/Analysis';
 
+// 🔧 Normalize congressional shapes coming from backend (array | object | undefined)
+const normalizeCongressData = (raw: unknown): any[] => {
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  if (raw && typeof raw === 'object') {
+    // Some payloads return an object keyed by index/id
+    return Object.values(raw as Record<string, unknown>).filter((v) => v && typeof v === 'object');
+  }
+  return [];
+};
+
+const logWithTs = (...args: any[]) => {
+  const ts = new Date().toISOString();
+  // eslint-disable-next-line no-console
+  console.log(`[${ts}]`, ...args);
+};
+
+// Extend ImportMeta interface for Vite environment variables
+declare global {
+  interface ImportMeta {
+    env: Record<string, string>;
+  }
+}
+
 // ✅ Props type for controlling modal visibility
 type DashboardProps = {
   setShowAuthModal: React.Dispatch<React.SetStateAction<boolean>>;
@@ -55,7 +78,22 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
     const fetchUserTrades = async () => {
       try {
         const { data: trades } = await axiosInstance.get('/api/trades', { withCredentials: true });
-        console.log('📦 Full trade history pulled:', trades);
+        logWithTs('📦 Full trade history pulled:', trades);
+        
+        // Debug first trade congressional data
+        if (trades.length > 0) {
+          const firstTrade = trades[0];
+          const firstCongress = normalizeCongressData(firstTrade.congress);
+          const firstCongressTrades = normalizeCongressData(firstTrade.congressTrades);
+          logWithTs('🔍 [Dashboard] First trade congressional data:', {
+            congress: firstTrade.congress,
+            congressTrades: firstTrade.congressTrades,
+            congressType: typeof firstTrade.congress,
+            congressTradesType: typeof firstTrade.congressTrades,
+            congressLength: Array.isArray(firstCongress) ? firstCongress.length : 'n/a',
+            congressTradesLength: Array.isArray(firstCongressTrades) ? firstCongressTrades.length : 'n/a'
+          });
+        }
 
         const loadedAnalysis: Record<string, AnalysisData> = {};
 
@@ -63,9 +101,23 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
           if (trade && trade.option && trade.option.ticker) {
             const ticker = trade.option.ticker?.split(':')[1]?.substring(0, 4)?.toUpperCase() || trade.ticker?.toUpperCase() || 'UNKNOWN';
 
+            // Debug congressional data (handles array or object shapes)
+            const dbgCongress = normalizeCongressData(trade.congress);
+            const dbgCongressTrades = normalizeCongressData(trade.congressTrades);
+            logWithTs(`🔍 [Dashboard] Trade ${ticker} congressional data:`, {
+              congress: trade.congress,
+              congressTrades: trade.congressTrades,
+              congressType: typeof trade.congress,
+              congressTradesType: typeof trade.congressTrades,
+              congressKeys: trade.congressTrades && typeof trade.congressTrades === 'object' ? Object.keys(trade.congressTrades) : 'not object',
+              congressValuesSample: dbgCongressTrades.slice(0, 3)
+            });
+
             loadedAnalysis[ticker] = {
               ticker,
               option: trade.option,
+              capital: typeof trade.capital === 'number' ? trade.capital : undefined,
+              riskTolerance: trade.riskTolerance,
               recommendationDirection: trade.recommendationDirection,
               confidence: trade.confidence,
               entryPrice: trade.entryPrice,
@@ -73,23 +125,35 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
               stopLoss: trade.stopLoss,
               gptResponse: trade.gptResponse,
               sentimentSummary: trade.sentimentSummary || 'N/A',
-              congressTrades: trade.congressTrades || 'N/A',
-              breakEvenPrice: trade.breakEvenPrice ?? 'N/A',
-              expectedROI: trade.expectedROI ?? 'N/A',
+              // ✅ Normalize both fields so downstream components can rely on arrays
+              congressTrades: normalizeCongressData(trade.congress) .length ? normalizeCongressData(trade.congress) : normalizeCongressData(trade.congressTrades),
+              congress: normalizeCongressData(trade.congress) .length ? normalizeCongressData(trade.congress) : normalizeCongressData(trade.congressTrades),
+              estimatedCost: typeof trade.estimatedCost === 'number' ? trade.estimatedCost : undefined,
+              breakEvenPrice: typeof trade.breakEvenPrice === 'number' ? trade.breakEvenPrice : undefined,
+              expectedROI: typeof trade.expectedROI === 'number' ? trade.expectedROI : undefined,
               indicators: trade.indicators ?? {
                 rsi: null,
                 macd: { histogram: null },
                 vwap: null
               },
-              expiryDate: trade.option?.expiration_date
+              expiryDate: trade.expiryDate || trade.option?.expiration_date,
+              createdAt: trade.createdAt,
+              updatedAt: trade.updatedAt,
+              outcome: trade.outcome
             };
+
+            // Debug what gets stored
+            logWithTs(`🔍 [Dashboard] Stored analysis for ${ticker}:`, {
+              storedCongress: loadedAnalysis[ticker].congress,
+              storedCongressTrades: loadedAnalysis[ticker].congressTrades
+            });
           }
         });
 
         setAnalysisData(loadedAnalysis);
         const firstTicker = Object.keys(loadedAnalysis)[0];
         setActiveTicker(firstTicker || null);
-        console.log('✅ Loaded trade history for user');
+        logWithTs('✅ Loaded trade history for user');
       } catch (err) {
         console.error('❌ Error loading trade history:', err);
       }
@@ -107,7 +171,7 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
   }, [analysisData, activeTicker, user]);
 
   const handleAnalysisResult = async ({ tickers, capital, riskTolerance, result }: any) => {
-    console.log('📬 Received analysis result from <TradeForm>');
+    logWithTs('📬 Received analysis result from <TradeForm>');
     console.log('📈 Tickers:', tickers);
     console.log('💰 Capital:', capital);
     console.log('🧠 Risk Tolerance:', riskTolerance);
@@ -155,9 +219,21 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
 
         const ticker = rawTicker.toUpperCase();
 
+        // 🔧 Normalize congress data and log
+        const normCongress = normalizeCongressData(details?.congress);
+        const normCongressTrades = normalizeCongressData(details?.congressTrades);
+        logWithTs(`🔧 [${ticker}] Normalized congress payloads:`, {
+          congressIn: details?.congress,
+          congressTradesIn: details?.congressTrades,
+          normCongressLen: normCongress.length,
+          normCongressTradesLen: normCongressTrades.length
+        });
+
         newAnalysis[ticker] = {
           ticker,
           option: details.option,
+          capital,
+          riskTolerance,
           recommendationDirection: details.tradeType || details.recommendationDirection,
           confidence: details.confidence,
           entryPrice: details.entryPrice,
@@ -165,18 +241,23 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
           stopLoss: details.stopLoss,
           gptResponse: details.gptResponse || details.analysis,
           sentimentSummary: details.sentimentSummary || details.sentiment || 'N/A',
-          congressTrades: details.congressTrades || details.congress || 'N/A',
-          breakEvenPrice: details.breakEvenPrice ?? 'N/A',
-          expectedROI: details.expectedROI ?? 'N/A',
+          congressTrades: normCongress.length ? normCongress : normCongressTrades,
+          congress: normCongress.length ? normCongress : normCongressTrades,
+          estimatedCost: typeof details.estimatedCost === 'number' ? details.estimatedCost : undefined,
+          breakEvenPrice: typeof details.breakEvenPrice === 'number' ? details.breakEvenPrice : undefined,
+          expectedROI: typeof details.expectedROI === 'number' ? details.expectedROI : undefined,
           indicators: details.indicators ?? {
             rsi: null,
             macd: { histogram: null },
             vwap: null
           },
-          expiryDate: details.option?.expiration_date
+          expiryDate: details.expiryDate || details.option?.expiration_date,
+          createdAt: details.createdAt,
+          updatedAt: details.updatedAt,
+          outcome: details.outcome
         };
 
-        console.log(`✅ [${ticker}] Final Mapped Analysis:`, newAnalysis[ticker]);
+        logWithTs(`✅ [${ticker}] Final Mapped Analysis:`, newAnalysis[ticker]);
       }
 
       const firstNewTicker = Object.keys(newAnalysis).find(
@@ -185,7 +266,7 @@ const Dashboard: React.FC<DashboardProps> = ({ setShowAuthModal }) => {
 
       setAnalysisData(newAnalysis);
       setActiveTicker(firstNewTicker);
-      console.log('✅ Analysis complete. Active Ticker:', firstNewTicker);
+      logWithTs('✅ Analysis complete. Active Ticker:', firstNewTicker);
     } catch (err: any) {
       const msg = err.response?.data?.error || err.message || 'Unknown error';
       alert(`❌ Failed to process analysis result: ${msg}`);

@@ -29,7 +29,17 @@ export interface Indicators {
   macd?: MACD;
 }
 
-// ✅ Main GPT response analysis structure
+// ✅ Congressional trade item
+export interface CongressTrade {
+  ticker?: string;
+  politician: string;
+  transactionType?: string;
+  amountRange?: string;
+  transactionDate?: string | Date;
+  source?: string;
+}
+
+// ✅ Main GPT response analysis structure - Updated to match MongoDB schema
 export interface AnalysisData {
   // 🎟️ Option contract selected by GPT
   option?: OptionContract;
@@ -47,13 +57,31 @@ export interface AnalysisData {
   // 🧠 GPT & Sentiment
   gptResponse?: string;
   sentimentSummary?: string;
-  congressTrades?: string;
+  congressTrades?: CongressTrade[] | string;
+  congress?: any[]; // 🏛️ New congressional data format from MongoDB
 
   // 🧭 Recommendation quality
   confidence?: string;
   recommendationDirection?: 'call' | 'put' | 'hold' | 'avoid' | 'unknown';
-  expiryDate?: string;
+  expiryDate?: string | Date;
 
   // 🆕 Ticker field (important for rendering and key tracking)
   ticker: string;
+
+  // 💰 Capital and risk management
+  capital?: number;
+  riskTolerance?: string;
+  estimatedCost?: number;
+
+  // 📈 Trade outcome tracking
+  outcome?: 'pending' | 'profitable' | 'unprofitable' | 'breakeven' | 'expired';
+  evaluationErrors?: string[];
+
+  // 🕒 Timestamps
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+
+  // 🔗 Additional fields from MongoDB
+  gptPrompt?: string;
+  tickers?: string[];
 }

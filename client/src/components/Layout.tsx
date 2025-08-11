@@ -11,7 +11,7 @@ interface LayoutProps {
 }
 
 // 📦 Layout component: wraps pages with consistent background, text styling, and shared header (Navbar)
-const Layout: React.FC<LayoutProps> = ({ children, setShowAuthModal }) => {
+const Layout: React.FC<LayoutProps> = React.memo(({ children, setShowAuthModal }) => {
   console.log('🧱 <Layout> rendering — modal control passed to <Navbar>');
 
   return (
@@ -30,6 +30,8 @@ const Layout: React.FC<LayoutProps> = ({ children, setShowAuthModal }) => {
       {children}
     </div>
   );
-};
+});
+
+Layout.displayName = 'Layout';
 
 export default Layout; // ✅ Export the Layout so other components like Dashboard and MarketPage can use it

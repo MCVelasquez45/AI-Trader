@@ -12,7 +12,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon --experimental-modules server.js",
-    "mongo": "mongosh \"mongodb+srv://cluster0.jkftqzy.mongodb.net/\" --apiVersion 1 --username aiTraderUser"
+    "mongo": "mongosh \"mongodb+srv://cluster0.jkftqzy.mongodb.net/\" --apiVersion 1 --username aiTraderUser",
+    "migrate:congress": "node jobs/migrateCongressTrades.js",
+    "migrate:congress:dry": "node jobs/migrateCongressTrades.js --dry"
   },
   "engines": {
     "node": "20.x"
