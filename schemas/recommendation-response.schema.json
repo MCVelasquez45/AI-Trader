@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RecommendationResponse",
+  "type": "object",
+  "required": ["decision", "contracts", "position", "confidence", "rationale", "disclosure"],
+  "properties": {
+    "decision": {
+      "type": "object",
+      "required": ["direction", "strategy"],
+      "properties": {
+        "direction": { "enum": ["CALL", "PUT"] },
+        "strategy": { "type": "string" }
+      }
+    },
+    "contracts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["symbol", "strike", "expiry", "liquidity_score"],
+        "properties": {
+          "symbol": { "type": "string" },
+          "strike": { "type": "number" },
+          "expiry": { "type": "string", "format": "date" },
+          "delta": { "type": "number" },
+          "gamma": { "type": "number" },
+          "theta": { "type": "number" },
+          "vega": { "type": "number" },
+          "mid": { "type": "number" },
+          "liquidity_score": { "type": "number", "minimum": 0, "maximum": 100 }
+        }
+      }
+    },
+    "position": {
+      "type": "object",
+      "required": ["contracts", "notional", "est_max_loss"],
+      "properties": {
+        "contracts": { "type": "integer" },
+        "notional": { "type": "number" },
+        "est_max_loss": { "type": "number" },
+        "holdingWindowDays": { "type": "integer" }
+      }
+    },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "rationale": {
+      "type": "object",
+      "required": ["summary", "layers"],
+      "properties": {
+        "summary": { "type": "string" },
+        "layers": {
+          "type": "object",
+          "required": ["liquidity", "sentiment", "congress", "indicators", "macro"],
+          "properties": {
+            "liquidity": { "type": "object" },
+            "sentiment": { "type": "object" },
+            "congress": { "type": "object" },
+            "indicators": { "type": "object" },
+            "macro": { "type": "object" }
+          }
+        }
+      }
+    },
+    "disclosure": { "type": "string" }
+  }
+}

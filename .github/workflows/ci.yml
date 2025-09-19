@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install root dependencies
+        run: npm install
+
+      - name: Lint frontend
+        run: npm run lint:frontend
+
+      - name: Build frontend
+        run: npm run build:frontend
+
+      - name: Build API gateway
+        run: npm run build:api
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install options-analytics deps
+        working-directory: services/options-analytics
+        run: |
+          pip install .[dev]
+
+      - name: Test options-analytics
+        working-directory: services/options-analytics
+        run: pytest
+
+      - name: Install signals-service deps
+        working-directory: services/signals-service
+        run: |
+          pip install .[dev]
+
+      - name: Test signals-service
+        working-directory: services/signals-service
+        run: pytest
+
+      - name: Install recommendation-engine deps
+        working-directory: services/recommendation-engine
+        run: |
+          pip install .[dev]
+
+      - name: Test recommendation-engine
+        working-directory: services/recommendation-engine
+        run: pytest
+
+      - name: Install market-data deps
+        working-directory: services/market-data
+        run: |
+          pip install .[dev]
+
+      - name: Test market-data
+        working-directory: services/market-data
+        run: pytest
+
+      - name: Go build data ingestion
+        working-directory: services/data-ingestion
+        run: go build ./...

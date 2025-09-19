@@ -1,0 +1,29 @@
+{
+  "name": "ai-trader",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Multi-service AI-driven options trading assistant with Next.js frontend and modular backend stack.",
+  "workspaces": [
+    "apps/frontend",
+    "services/api-gateway"
+  ],
+  "scripts": {
+    "dev": "npm run dev:frontend",
+    "dev:frontend": "npm --workspace @ai-trader/frontend run dev",
+    "dev:api": "npm --workspace @ai-trader/api-gateway run start:dev",
+    "build": "npm run build:frontend && npm run build:api",
+    "build:frontend": "npm --workspace @ai-trader/frontend run build",
+    "build:api": "npm --workspace @ai-trader/api-gateway run build",
+    "lint": "npm run lint:frontend && npm run lint:api",
+    "lint:frontend": "npm --workspace @ai-trader/frontend run lint",
+    "lint:api": "npm --workspace @ai-trader/api-gateway run lint",
+    "format": "npm --workspace @ai-trader/frontend run format"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@launchdarkly/node-server-sdk": "^9.10.2",
+    "class-transformer": "^0.5.1"
+  }
+}

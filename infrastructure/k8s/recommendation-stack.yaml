@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recommendation-engine
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: recommendation-engine
+  template:
+    metadata:
+      labels:
+        app: recommendation-engine
+    spec:
+      containers:
+        - name: recommendation-engine
+          image: ghcr.io/ai-trader/recommendation-engine:latest
+          ports:
+            - containerPort: 7004
+          env:
+            - name: FEATURE_STORE_HOST
+              value: "feature-store"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recommendation-engine
+spec:
+  selector:
+    app: recommendation-engine
+  ports:
+    - port: 80
+      targetPort: 7004

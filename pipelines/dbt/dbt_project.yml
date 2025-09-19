@@ -1,0 +1,15 @@
+name: "ai_trader"
+version: "1.0.0"
+config-version: 2
+profile: "ai_trader"
+model-paths: ["models"]
+seed-paths: ["seeds"]
+
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  ai_trader:
+    +materialized: table
+    feature_store:
+      +schema: analytics

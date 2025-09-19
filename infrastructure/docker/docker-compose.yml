@@ -1,0 +1,123 @@
+version: "3.9"
+services:
+  frontend:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/frontend.Dockerfile
+    command: npm run dev:frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-gateway
+
+  api-gateway:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/api-gateway.Dockerfile
+    environment:
+      PORT: 4000
+      MARKET_DATA_URL: http://market-data-api:7001
+      OPTIONS_ANALYTICS_URL: http://options-analytics:7002
+      SIGNALS_URL: http://signals-service:7003
+      RECOMMENDER_URL: http://recommendation-engine:7004
+      AI_ORCHESTRATOR_URL: http://ai-orchestrator:7005
+    ports:
+      - "4000:4000"
+    depends_on:
+      - market-data-api
+
+  market-data-api:
+    build:
+      context: ../../services/market-data
+      dockerfile: ../infrastructure/docker/python-service.Dockerfile
+    environment:
+      REDIS_URI: redis://redis:6379/0
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7001"]
+    ports:
+      - "7001:7001"
+    depends_on:
+      - redis
+
+  options-analytics:
+    build:
+      context: ../../services/options-analytics
+      dockerfile: ../infrastructure/docker/python-service.Dockerfile
+    environment:
+      REDIS_URI: redis://redis:6379/0
+      MARKET_DATA_URL: http://market-data-api:7001
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7002"]
+    ports:
+      - "7002:7002"
+    depends_on:
+      - redis
+
+  signals-service:
+    build:
+      context: ../../services/signals-service
+      dockerfile: ../infrastructure/docker/python-service.Dockerfile
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7003"]
+    ports:
+      - "7003:7003"
+
+  recommendation-engine:
+    build:
+      context: ../../services/recommendation-engine
+      dockerfile: ../infrastructure/docker/python-service.Dockerfile
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7004"]
+    ports:
+      - "7004:7004"
+
+  ai-orchestrator:
+    build:
+      context: ../../services/ai-orchestrator
+      dockerfile: ../infrastructure/docker/python-service.Dockerfile
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7005"]
+    ports:
+      - "7005:7005"
+
+  market-data:
+    build:
+      context: ../../services/data-ingestion
+      dockerfile: ../infrastructure/docker/go-service.Dockerfile
+    command: ["/app/ingestor"]
+    environment:
+      REDIS_URI: redis://redis:6379/0
+      KAFKA_BROKERS: kafka:9092
+      S3_BUCKET: ai-trader-raw
+      POLYGON_API_KEY: ${POLYGON_API_KEY:-demo}
+      POLYGON_SYMBOLS: AAPL,MSFT
+    depends_on:
+      - kafka
+      - redis
+
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - "6379:6379"
+
+  kafka:
+    image: bitnami/kafka:3.7
+    environment:
+      KAFKA_ENABLE_KRAFT: "yes"
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:19093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:19093
+      KAFKA_CFG_NODE_ID: 1
+    ports:
+      - "9092:9092"
+
+  postgres:
+    image: timescale/timescaledb:2.14.2-pg16
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: analytics
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

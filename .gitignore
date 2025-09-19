@@ -1,0 +1,41 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+.next/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+venv/
+.env
+
+# Go
+bin/
+
+# Logs
+logs/
+*.log
+
+# Environment
+*.env
+*.env.local
+.env.*
+
+# Editor
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# Docker
+*.pid
